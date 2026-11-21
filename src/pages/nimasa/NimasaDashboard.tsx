@@ -80,7 +80,7 @@ export const NimasaDashboard: React.FC = () => {
   }, [nimasaPatients, searchQuery, statusFilter, stageFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Top Page Title + Reports CTA */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
@@ -101,82 +101,39 @@ export const NimasaDashboard: React.FC = () => {
         </Link>
       </div>
 
-      {/* Kingscare Partner Hospital Card + Abuja Map Placeholder */}
-      <div className="bg-surface-card rounded-lg border border-surface-border shadow-card p-5 sm:p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-          <div className="lg:col-span-2 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-                Accredited NIMASA retainer hospital
-              </span>
-              <span className="text-xs text-ink-muted font-medium">
-                Facility code KC-ABJ-01
-              </span>
-            </div>
-
-            <h2 className="text-lg sm:text-xl font-bold text-ink-primary">
+      <section
+        aria-label="Partner hospital information"
+        className="flex flex-col gap-3 rounded-lg border border-surface-border bg-surface-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <h2 className="text-sm font-bold text-ink-primary">
               Kingscare Specialist Hospital, Abuja
             </h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-ink-secondary pt-1">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-primary-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <span>
-                  Plot 412 Ahmadu Bello Way, Garki II District, Abuja, FCT,
-                  Nigeria
-                </span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Phone className="w-4 h-4 text-primary-600 shrink-0 mt-0.5" aria-hidden="true" />
-                <span>
-                  NIMASA desk: +234 (0) 9 291 4400 · 24/7 emergency triage
-                </span>
-              </div>
-            </div>
+            <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+              Accredited
+            </span>
+            <span className="text-xs font-medium text-ink-muted">KC-ABJ-01</span>
           </div>
-
-          {/* Stylised Abuja Map Placeholder */}
-          <div className="relative h-32 rounded-lg border border-surface-border bg-surface-subtle overflow-hidden flex items-center justify-center">
-            <svg
-              aria-hidden="true"
-              className="absolute inset-0 w-full h-full text-slate-200"
-              viewBox="0 0 300 120"
-              fill="none"
-            >
-              <path
-                d="M0 30 H300 M0 65 H300 M0 95 H300 M60 0 V120 M145 0 V120 M230 0 V120"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M10 110 Q 120 40 290 15"
-                stroke="#93c5fd"
-                strokeWidth="5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="relative z-10 bg-white/95 backdrop-blur-sm px-3.5 py-2 rounded-lg border border-slate-200 shadow-sm flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">
-                <MapPin className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-slate-900">
-                  Kingscare Garki II, Abuja
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  9.0385° N, 7.4934° E • Map Preview
-                </p>
-              </div>
-            </div>
-          </div>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
+            <MapPin className="w-3.5 h-3.5 shrink-0 text-primary-600" aria-hidden="true" />
+            Plot 412 Ahmadu Bello Way, Garki II District, Abuja
+          </p>
         </div>
-      </div>
+        <a
+          href="tel:+23492914400"
+          className="inline-flex min-h-9 shrink-0 items-center gap-2 self-start rounded-lg border border-surface-border px-3 text-xs font-semibold text-ink-secondary transition-colors hover:border-primary-300 hover:bg-primary-50 hover:text-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 sm:self-auto"
+        >
+          <Phone className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
+          NIMASA desk · +234 9 291 4400
+        </a>
+      </section>
 
       {/* 4 Dashboard KPI Tiles */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {/* Tile 1: Total NIMASA patients registered */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-4 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Total NIMASA Registered
@@ -194,7 +151,7 @@ export const NimasaDashboard: React.FC = () => {
         </div>
 
         {/* Tile 2: In hospital now (active) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-emerald-200 transition-all">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-4 shadow-card hover:shadow-card-hover hover:border-emerald-200 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               In Hospital Now (Active)
@@ -215,7 +172,7 @@ export const NimasaDashboard: React.FC = () => {
         </div>
 
         {/* Tile 3: Discharged (inactive) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-4 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Discharged (Inactive)
@@ -232,7 +189,7 @@ export const NimasaDashboard: React.FC = () => {
           </p>
         </div>
 
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-amber-200 transition-all">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-4 shadow-card hover:shadow-card-hover hover:border-amber-200 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Needs attention
