@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
   Users,
   ClipboardList,
   AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { RoleType } from '../../types';
@@ -84,6 +85,13 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
   const location = useLocation();
   const navigate = useNavigate();
   const { activeRole, setActiveRole, resetDemoData, auditLog } = useHospital();
+  const [resetToast, setResetToast] = useState(false);
+
+  const handleResetDemo = () => {
+    resetDemoData();
+    setResetToast(true);
+    window.setTimeout(() => setResetToast(false), 2600);
+  };
 
   const currentPath = location.pathname;
 
@@ -168,10 +176,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
             </div>
             <button
               type="button"
-              onClick={resetDemoData}
+              onClick={handleResetDemo}
               aria-label="Reset fictional demo data to initial state"
               title="Reset fictional demo data to initial state"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition-colors"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition-colors active:scale-[0.98]"
             >
               <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
               <span className="hidden lg:inline">Reset</span>
@@ -179,6 +187,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({
           </div>
         </div>
       </div>
+
+      {/* Live Demo Reset Confirmation Toast */}
+      {resetToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-medium shadow-xl border border-slate-700"
+        >
+          <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-hidden="true" />
+          <span>Demo data reset to initial fictional state</span>
+        </div>
+      )}
 
       {/* Main Brand Header */}
       <header className="bg-surface-card border-b border-surface-border sticky top-0 z-30">
