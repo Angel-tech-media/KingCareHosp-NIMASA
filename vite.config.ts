@@ -6,5 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: ['workspace-nqdadgzw-5dc87b6a9fec8690.v0.build'],
+  },
+  preview: {
+    allowedHosts: ['workspace-nqdadgzw-5dc87b6a9fec8690.v0.build'],
   },
 });
