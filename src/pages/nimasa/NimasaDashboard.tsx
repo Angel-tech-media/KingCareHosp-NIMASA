@@ -140,8 +140,9 @@ export const NimasaDashboard: React.FC = () => {
           </div>
 
           {/* Stylised Abuja Map Placeholder */}
-          <div className="relative h-32 rounded-lg border border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center">
+          <div className="relative h-32 rounded-lg border border-surface-border bg-surface-subtle overflow-hidden flex items-center justify-center">
             <svg
+              aria-hidden="true"
               className="absolute inset-0 w-full h-full text-slate-200"
               viewBox="0 0 300 120"
               fill="none"
@@ -178,86 +179,93 @@ export const NimasaDashboard: React.FC = () => {
       {/* 4 Dashboard KPI Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Tile 1: Total NIMASA patients registered */}
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Total NIMASA Registered
             </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900 mt-3">
+          <p className="text-3xl font-bold text-ink-primary mt-3">
             {totalRegistered}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-ink-muted mt-1">
             Staff & members enrolled at Kingscare
           </p>
         </div>
 
         {/* Tile 2: In hospital now (active) */}
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               In Hospital Now (Active)
             </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <Activity className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2 mt-3">
-            <p className="text-3xl font-bold text-emerald-700">{activeCount}</p>
-            <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+            <p className="text-3xl font-bold text-emerald-800">{activeCount}</p>
+            <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
               Live in care
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-ink-muted mt-1">
             Across consultation, labs & ward
           </p>
         </div>
 
         {/* Tile 3: Discharged (inactive) */}
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Discharged (Inactive)
             </span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-surface-subtle text-ink-secondary flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-700 mt-3">
+          <p className="text-3xl font-bold text-ink-secondary mt-3">
             {dischargedCount}
           </p>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-ink-muted mt-1">
             Completed medical journey & cleared
           </p>
         </div>
 
         {/* Tile 4: Today's count vs daily quota (e.g. 14 / 20) */}
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Today&apos;s Count vs Quota
             </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center">
               <Gauge className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-3">
-            <p className="text-3xl font-bold text-slate-900">
+            <p className="text-3xl font-bold text-ink-primary">
               {todaysCount}{' '}
-              <span className="text-lg font-medium text-slate-400">
+              <span className="text-lg font-medium text-ink-muted">
                 / {dailyQuotaMax}
               </span>
             </p>
-            <span className="text-xs font-semibold text-blue-700">
+            <span className="text-xs font-semibold text-primary-700">
               {quotaPct}% of daily quota
             </span>
           </div>
-          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mt-2.5">
+          <div
+            role="progressbar"
+            aria-label="Daily NIMASA quota utilization"
+            aria-valuenow={todaysCount}
+            aria-valuemin={0}
+            aria-valuemax={dailyQuotaMax}
+            className="w-full h-2 bg-surface-subtle rounded-full overflow-hidden mt-2.5"
+          >
             <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-300"
+              className="h-full bg-primary-600 rounded-full transition-all duration-300"
               style={{ width: `${quotaPct}%` }}
             />
           </div>
@@ -265,15 +273,18 @@ export const NimasaDashboard: React.FC = () => {
       </div>
 
       {/* Main Patient Tracking Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <section
+        aria-labelledby="nimasa-directory-heading"
+        className="bg-surface-card rounded-lg border border-surface-border shadow-card overflow-hidden"
+      >
         {/* Table Controls */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="p-4 sm:p-5 border-b border-surface-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 id="nimasa-directory-heading" className="text-base font-bold text-ink-primary">
               NIMASA Patient Journey Directory
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Click any row to open the member&apos;s horizontal stage timeline
+            <p className="text-xs text-ink-muted mt-0.5">
+              Click or press Enter on any row to open the member&apos;s horizontal stage timeline
               and timestamped electronic trail.
             </p>
           </div>
@@ -281,27 +292,36 @@ export const NimasaDashboard: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Search */}
             <div className="relative flex-1 sm:flex-initial sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search
+                aria-hidden="true"
+                className="w-4 h-4 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2"
+              />
               <input
-                type="text"
+                type="search"
+                aria-label="Search NIMASA patients by record number, name, or location"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search record no., name, location..."
-                className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-surface-border-strong text-xs sm:text-sm text-ink-primary placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-primary-600"
               />
             </div>
 
             {/* Active / Inactive Filter */}
-            <div className="inline-flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
+            <div
+              role="group"
+              aria-label="Filter patients by active status"
+              className="inline-flex rounded-lg border border-surface-border p-0.5 bg-surface-canvas"
+            >
               {(['ALL', 'Active', 'Inactive'] as const).map((st) => (
                 <button
                   key={st}
                   type="button"
+                  aria-pressed={statusFilter === st}
                   onClick={() => setStatusFilter(st)}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                     statusFilter === st
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
+                      ? 'bg-surface-card text-ink-primary shadow-sm'
+                      : 'text-ink-muted hover:text-ink-primary'
                   }`}
                 >
                   {st === 'ALL' ? 'All Status' : st}
@@ -311,11 +331,15 @@ export const NimasaDashboard: React.FC = () => {
 
             {/* Stage Filter */}
             <div className="relative">
-              <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Filter
+                aria-hidden="true"
+                className="w-3.5 h-3.5 text-ink-muted absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              />
               <select
+                aria-label="Filter patients by care stage"
                 value={stageFilter}
                 onChange={(e) => setStageFilter(e.target.value)}
-                className="pl-8 pr-7 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="pl-8 pr-7 py-1.5 rounded-lg border border-surface-border-strong text-xs font-medium text-ink-secondary bg-surface-card focus:outline-none focus:ring-2 focus:ring-primary-600"
               >
                 <option value="ALL">All Stages ({nimasaPatients.length})</option>
                 {ALL_STAGES.map((stage) => (
@@ -330,24 +354,27 @@ export const NimasaDashboard: React.FC = () => {
 
         {/* Responsive Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table
+            aria-label="NIMASA Patient Journey Directory"
+            className="w-full text-left border-collapse"
+          >
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                <th className="py-3 px-4">Record No.</th>
-                <th className="py-3 px-4">Name</th>
-                <th className="py-3 px-4">Current Stage</th>
-                <th className="py-3 px-4">Location Now</th>
-                <th className="py-3 px-4">Time in Hospital</th>
-                <th className="py-3 px-4">Active / Inactive</th>
-                <th className="py-3 px-4 text-right">Journey</th>
+              <tr className="bg-surface-canvas border-b border-surface-border text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                <th scope="col" className="py-3 px-4">Record No.</th>
+                <th scope="col" className="py-3 px-4">Name</th>
+                <th scope="col" className="py-3 px-4">Current Stage</th>
+                <th scope="col" className="py-3 px-4">Location Now</th>
+                <th scope="col" className="py-3 px-4">Time in Hospital</th>
+                <th scope="col" className="py-3 px-4">Active / Inactive</th>
+                <th scope="col" className="py-3 px-4 text-right">Journey</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 text-sm">
+            <tbody className="divide-y divide-surface-border text-sm">
               {filteredPatients.length === 0 ? (
                 <tr>
                   <td
                     colSpan={7}
-                    className="py-10 text-center text-slate-500 text-sm"
+                    className="py-10 text-center text-ink-muted text-sm"
                   >
                     No NIMASA patient records match your current filter.
                   </td>
@@ -356,31 +383,40 @@ export const NimasaDashboard: React.FC = () => {
                 filteredPatients.map((patient) => (
                   <tr
                     key={patient.id}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`View stage timeline for ${patient.fullName}, record ${patient.recordNo}, currently ${patient.currentStage}`}
                     onClick={() =>
                       navigate(`/nimasa/patients/${patient.recordNo}`)
                     }
-                    className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/nimasa/patients/${patient.recordNo}`);
+                      }
+                    }}
+                    className="hover:bg-primary-50/50 focus-visible:bg-primary-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 cursor-pointer transition-colors group"
                   >
-                    <td className="py-3.5 px-4 font-mono text-xs font-semibold text-blue-700">
+                    <td className="py-3.5 px-4 font-mono text-xs font-semibold text-primary-700">
                       {patient.recordNo}
                     </td>
                     <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">
+                      <div className="font-semibold text-ink-primary group-hover:text-primary-700 transition-colors">
                         {patient.fullName}
                       </div>
-                      <div className="text-xs text-slate-500">
+                      <div className="text-xs text-ink-muted">
                         {patient.nimasaStaffId} • {patient.nimasaDepartment}
                       </div>
                     </td>
                     <td className="py-3.5 px-4">
                       <StageChip stage={patient.currentStage} />
                     </td>
-                    <td className="py-3.5 px-4 text-xs sm:text-sm text-slate-700 font-medium">
+                    <td className="py-3.5 px-4 text-xs sm:text-sm text-ink-secondary font-medium">
                       {patient.currentLocation}
                     </td>
-                    <td className="py-3.5 px-4 text-xs text-slate-600">
+                    <td className="py-3.5 px-4 text-xs text-ink-muted">
                       <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <Clock className="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
                         {patient.timeInHospital}
                       </span>
                     </td>
@@ -388,9 +424,9 @@ export const NimasaDashboard: React.FC = () => {
                       <StatusChip status={patient.status} />
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 group-hover:translate-x-0.5 transition-transform">
                         Timeline
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-4 h-4" aria-hidden="true" />
                       </span>
                     </td>
                   </tr>
@@ -399,7 +435,7 @@ export const NimasaDashboard: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

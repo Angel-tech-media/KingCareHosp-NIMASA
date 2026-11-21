@@ -97,73 +97,85 @@ export const DoctorDashboard: React.FC = () => {
       </div>
 
       {/* Queue Tabs: Awaiting me | In assessment | Results ready | All Active */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 px-4 pt-3 flex flex-wrap items-center gap-2 bg-slate-50/60">
+      <div className="bg-surface-card rounded-lg border border-surface-border shadow-card overflow-hidden">
+        <div
+          role="tablist"
+          aria-label="Doctor patient queues"
+          className="border-b border-surface-border px-4 pt-3 flex flex-wrap items-center gap-2 bg-surface-canvas"
+        >
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'AWAITING'}
             onClick={() => setActiveTab('AWAITING')}
             className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'AWAITING'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-primary-600 text-primary-700 bg-surface-card rounded-t-lg'
+                : 'border-transparent text-ink-muted hover:text-ink-primary'
             }`}
           >
             <span>Awaiting me</span>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-900">
               {awaitingList.length}
             </span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'IN_ASSESSMENT'}
             onClick={() => setActiveTab('IN_ASSESSMENT')}
             className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'IN_ASSESSMENT'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-primary-600 text-primary-700 bg-surface-card rounded-t-lg'
+                : 'border-transparent text-ink-muted hover:text-ink-primary'
             }`}
           >
             <span>In assessment</span>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-800">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-900">
               {inAssessmentList.length}
             </span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'RESULTS_READY'}
             onClick={() => setActiveTab('RESULTS_READY')}
             className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'RESULTS_READY'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-primary-600 text-primary-700 bg-surface-card rounded-t-lg'
+                : 'border-transparent text-ink-muted hover:text-ink-primary'
             }`}
           >
             <span>Results ready</span>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-primary-100 text-primary-800">
               {resultsReadyList.length}
             </span>
           </button>
 
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'ALL_ACTIVE'}
             onClick={() => setActiveTab('ALL_ACTIVE')}
             className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === 'ALL_ACTIVE'
-                ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
-                : 'border-transparent text-slate-600 hover:text-slate-900'
+                ? 'border-primary-600 text-primary-700 bg-surface-card rounded-t-lg'
+                : 'border-transparent text-ink-muted hover:text-ink-primary'
             }`}
           >
             <span>All Active in Hospital</span>
-            <span className="px-2 py-0.5 rounded-full text-xs bg-slate-200 text-slate-700">
+            <span className="px-2 py-0.5 rounded-full text-xs bg-slate-200 text-ink-secondary">
               {allActiveList.length}
             </span>
           </button>
         </div>
 
         {/* Patient List */}
-        <div className="divide-y divide-slate-200">
+        <div role="tabpanel" className="divide-y divide-surface-border">
           {displayedPatients.length === 0 ? (
-            <div className="p-10 text-center text-sm text-slate-500">
+            <div className="p-10 text-center text-sm text-ink-muted">
               No patients currently in this queue tab.
             </div>
           ) : (
@@ -175,10 +187,19 @@ export const DoctorDashboard: React.FC = () => {
               return (
                 <div
                   key={patient.id}
+                  tabIndex={0}
+                  role="link"
+                  aria-label={`Open clinical workspace for ${patient.fullName}, record ${patient.recordNo}, stage ${patient.currentStage}`}
                   onClick={() =>
                     navigate(`/doctor/patients/${patient.recordNo}`)
                   }
-                  className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-blue-50/40 cursor-pointer transition-colors group"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/doctor/patients/${patient.recordNo}`);
+                    }
+                  }}
+                  className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-primary-50/40 focus-visible:bg-primary-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-600 cursor-pointer transition-colors group"
                 >
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">

@@ -148,22 +148,22 @@ export const NimasaPatientStage: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-lg border border-slate-200 px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-4 text-xs">
+          <div className="bg-surface-canvas rounded-lg border border-surface-border px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-4 text-xs">
             <div>
-              <span className="text-slate-400 uppercase font-semibold block">
+              <span className="text-ink-muted uppercase font-semibold block">
                 Current Location Now
               </span>
-              <span className="text-slate-900 font-semibold flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-ink-primary font-semibold flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
                 {patient.currentLocation}
               </span>
             </div>
-            <div className="sm:border-l sm:border-slate-200 sm:pl-4">
-              <span className="text-slate-400 uppercase font-semibold block">
+            <div className="sm:border-l sm:border-surface-border sm:pl-4">
+              <span className="text-ink-muted uppercase font-semibold block">
                 Time in Hospital
               </span>
-              <span className="text-slate-900 font-semibold flex items-center gap-1 mt-0.5">
-                <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <span className="text-ink-primary font-semibold flex items-center gap-1 mt-0.5">
+                <Clock className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
                 {patient.timeInHospital}
               </span>
             </div>
@@ -212,28 +212,46 @@ export const NimasaPatientStage: React.FC = () => {
               return (
                 <div
                   key={step.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isHovered}
+                  aria-label={`${displayLabel}: ${isCurrent ? 'Current stage' : isCompleted ? 'Completed' : 'Pending'}. ${tooltipSummary}`}
                   onMouseEnter={() => setHoveredStepId(step.id)}
                   onMouseLeave={() => setHoveredStepId(null)}
+                  onFocus={() => setHoveredStepId(step.id)}
+                  onBlur={() => setHoveredStepId(null)}
                   onClick={() =>
                     setHoveredStepId(isHovered ? null : step.id)
                   }
-                  className="relative flex flex-col items-center text-center group cursor-pointer px-1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setHoveredStepId(isHovered ? null : step.id);
+                    } else if (e.key === 'Escape') {
+                      setHoveredStepId(null);
+                    }
+                  }}
+                  className="relative flex flex-col items-center text-center group cursor-pointer px-1 rounded-lg"
                 >
                   {/* Connector Bar */}
                   {index < TIMELINE_STEPS.length - 1 && (
                     <div
+                      aria-hidden="true"
                       className={`absolute top-5 left-1/2 w-full h-1 -z-0 transition-colors ${
                         index < currentStepIndex
-                          ? 'bg-blue-600'
-                          : 'bg-slate-200'
+                          ? 'bg-primary-600'
+                          : 'bg-surface-border'
                       }`}
                     />
                   )}
 
-                  {/* Hover Tooltip Popover */}
+                  {/* Hover / Focus Tooltip Popover */}
                   {isHovered && (
-                    <div className="absolute -top-28 z-30 w-56 p-3 rounded-lg bg-slate-900 text-white text-left shadow-xl border border-slate-700 pointer-events-none">
-                      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-blue-300 mb-1">
+                    <div
+                      role="tooltip"
+                      className="absolute -top-28 z-30 w-56 p-3 rounded-lg bg-slate-900 text-white text-left shadow-xl border border-slate-700 pointer-events-none"
+                    >
+                      <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-blue-200 mb-1">
                         <span>{displayLabel}</span>
                         <span>{entry ? entry.reachedAt.split(', ')[1] : 'Pending'}</span>
                       </div>
@@ -241,7 +259,7 @@ export const NimasaPatientStage: React.FC = () => {
                         {tooltipSummary}
                       </p>
                       {entry && (
-                        <p className="text-[10px] text-slate-400 mt-1.5">
+                        <p className="text-[10px] text-slate-300 mt-1.5">
                           Stamped by: {entry.actorRole}
                         </p>
                       )}
@@ -252,10 +270,10 @@ export const NimasaPatientStage: React.FC = () => {
                   <div
                     className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs border-2 transition-all ${
                       isCurrent
-                        ? 'bg-blue-600 text-white border-blue-600 ring-4 ring-blue-100 scale-110'
+                        ? 'bg-primary-600 text-white border-primary-600 ring-4 ring-primary-100 scale-110'
                         : isCompleted
                         ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-slate-400 border-slate-300'
+                        : 'bg-surface-card text-ink-muted border-surface-border-strong'
                     }`}
                   >
                     {isCompleted && !isCurrent ? (
