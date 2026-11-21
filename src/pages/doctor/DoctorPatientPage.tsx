@@ -288,7 +288,7 @@ export const DoctorPatientPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAdmit}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-purple-50 text-purple-800 border border-purple-300 text-xs font-semibold shadow-sm transition-colors"
               >
                 <BedDouble className="w-4 h-4" />
                 <span>
@@ -549,7 +549,7 @@ export const DoctorPatientPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setIsOrderModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-primary-50 text-primary-700 border border-primary-300 text-xs font-semibold shadow-sm transition-colors"
                       >
                         <FlaskConical className="w-3.5 h-3.5" />
                         <span>Send for tests</span>
@@ -558,7 +558,7 @@ export const DoctorPatientPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleAdmit}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-purple-50 text-purple-800 border border-purple-300 text-xs font-semibold shadow-sm transition-colors"
                       >
                         <BedDouble className="w-3.5 h-3.5" />
                         <span>Admit patient</span>

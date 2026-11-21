@@ -76,22 +76,20 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="py-6 sm:py-10">
+    <div className="py-8 sm:py-14">
       {/* Header Intro */}
-      <div className="max-w-3xl mx-auto text-center mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-medium mb-3">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Electronic Patient Journey & Clinical Audit System
+      <div className="max-w-2xl mx-auto text-center mb-10 sm:mb-12">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-card text-ink-secondary border border-surface-border text-xs font-medium mb-4 shadow-card">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+          Every step stamped with who and when
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-          Kingscare Hospital & NIMASA Sponsor Portal
+        <h1 className="text-3xl sm:text-4xl font-bold text-ink-primary tracking-tight">
+          Sign in to Kingscare
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 mt-2">
-          Select an entry portal below to sign in, or use the{' '}
-          <span className="font-semibold text-slate-800">
-            Demo mode role switcher
-          </span>{' '}
-          in the top right bar at any time.
+        <p className="text-base text-ink-muted mt-3">
+          Follow each NIMASA member from the front desk to discharge. Choose your
+          portal below, or use <span className="font-semibold text-ink-secondary">View as</span> in
+          the demo bar to jump between roles.
         </p>
       </div>
 
