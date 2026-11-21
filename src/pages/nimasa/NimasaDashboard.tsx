@@ -1,18 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  MapPin,
-  Phone,
   Users,
   Activity,
   CheckCircle2,
-  Gauge,
   Search,
+  X,
   Filter,
   ChevronRight,
   FileBarChart,
   Clock,
   ShieldCheck,
+  MapPin,
+  Phone,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { StageChip, StatusChip } from '../../components/ui/StageChip';
@@ -52,13 +52,15 @@ export const NimasaDashboard: React.FC = () => {
     (p) => p.status === 'Inactive'
   ).length;
 
-  // Daily quota calculation (e.g. 14 / 20)
-  const dailyQuotaMax = 20;
-  const todaysCount = Math.min(
-    dailyQuotaMax,
-    nimasaPatients.filter((p) => p.arrivedAt.startsWith('21 Nov')).length + 3
-  );
-  const quotaPct = Math.round((todaysCount / dailyQuotaMax) * 100);
+  const needsAttentionCount = nimasaPatients.filter(
+    (patient) => patient.currentStage === 'Registered' || patient.currentStage === 'Awaiting doctor'
+  ).length;
+  const hasActiveFilters = Boolean(searchQuery || statusFilter !== 'ALL' || stageFilter !== 'ALL');
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('ALL');
+    setStageFilter('ALL');
+  };
 
   const filteredPatients = useMemo(() => {
     return nimasaPatients.filter((p) => {
@@ -230,40 +232,17 @@ export const NimasaDashboard: React.FC = () => {
           </p>
         </div>
 
-        {/* Tile 4: Today's count vs daily quota (e.g. 14 / 20) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-all">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-amber-200 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              Today&apos;s Count vs Quota
+              Needs attention
             </span>
-            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center">
-              <Gauge className="w-4 h-4" />
+            <div aria-hidden="true" className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+              <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="flex items-baseline justify-between mt-3">
-            <p className="text-3xl font-bold text-ink-primary">
-              {todaysCount}{' '}
-              <span className="text-lg font-medium text-ink-muted">
-                / {dailyQuotaMax}
-              </span>
-            </p>
-            <span className="text-xs font-semibold text-primary-700">
-              {quotaPct}% of daily quota
-            </span>
-          </div>
-          <div
-            role="progressbar"
-            aria-label="Daily NIMASA quota utilization"
-            aria-valuenow={todaysCount}
-            aria-valuemin={0}
-            aria-valuemax={dailyQuotaMax}
-            className="w-full h-2 bg-surface-subtle rounded-full overflow-hidden mt-2.5"
-          >
-            <div
-              className="h-full bg-primary-600 rounded-full transition-all duration-300"
-              style={{ width: `${quotaPct}%` }}
-            />
-          </div>
+          <p className="text-3xl font-bold text-amber-800 mt-3">{needsAttentionCount}</p>
+          <p className="text-xs text-ink-muted mt-1">Registered or awaiting a doctor</p>
         </div>
       </div>
 
@@ -278,9 +257,8 @@ export const NimasaDashboard: React.FC = () => {
             <h3 id="nimasa-directory-heading" className="text-base font-bold text-ink-primary">
               NIMASA Patient Journey Directory
             </h3>
-            <p className="text-xs text-ink-muted mt-0.5">
-              Click or press Enter on any row to open the member&apos;s horizontal stage timeline
-              and timestamped electronic trail.
+            <p className="text-xs text-ink-muted mt-0.5" aria-live="polite">
+              Showing <span className="font-semibold text-ink-secondary">{filteredPatients.length}</span> of {nimasaPatients.length} consented member records
             </p>
           </div>
 
@@ -344,6 +322,16 @@ export const NimasaDashboard: React.FC = () => {
                 ))}
               </select>
             </div>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs font-semibold text-primary-700 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+                Clear filters
+              </button>
+            )}
           </div>
         </div>
 
