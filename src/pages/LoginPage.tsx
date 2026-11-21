@@ -100,7 +100,7 @@ export const LoginPage: React.FC = () => {
         {/* Card 1: Hospital Staff */}
         <section
           aria-labelledby="staff-login-heading"
-          className="bg-surface-card rounded-lg border border-surface-border shadow-card p-6 sm:p-8 flex flex-col justify-between"
+          className="bg-surface-card rounded-lg border border-surface-border shadow-card hover:shadow-card-hover hover:border-primary-200 transition-all p-6 sm:p-8 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-6">
@@ -210,7 +210,7 @@ export const LoginPage: React.FC = () => {
         {/* Card 2: NIMASA Sponsor Portal */}
         <section
           aria-labelledby="nimasa-login-heading"
-          className="bg-surface-card rounded-lg border border-surface-border shadow-card p-6 sm:p-8 flex flex-col justify-between"
+          className="bg-surface-card rounded-lg border border-surface-border shadow-card hover:shadow-card-hover hover:border-emerald-200 transition-all p-6 sm:p-8 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-6">

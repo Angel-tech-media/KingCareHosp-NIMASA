@@ -97,15 +97,15 @@ export const NimasaDashboard: React.FC = () => {
 
         <Link
           to="/nimasa/reports"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-medium text-sm shadow-sm transition-colors"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-card border border-surface-border-strong hover:bg-primary-50/50 hover:border-primary-300 text-ink-primary font-medium text-sm shadow-card hover:shadow-card-hover transition-all active:scale-[0.99]"
         >
-          <FileBarChart className="w-4 h-4 text-blue-600" />
+          <FileBarChart className="w-4 h-4 text-primary-600" aria-hidden="true" />
           <span>View Sponsor Reports & Charts</span>
         </Link>
       </div>
 
       {/* Kingscare Partner Hospital Card + Abuja Map Placeholder */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-5 sm:p-6">
+      <div className="bg-surface-card rounded-lg border border-surface-border shadow-card hover:shadow-card-hover transition-shadow p-5 sm:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           <div className="lg:col-span-2 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +179,7 @@ export const NimasaDashboard: React.FC = () => {
       {/* 4 Dashboard KPI Tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Tile 1: Total NIMASA patients registered */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Total NIMASA Registered
@@ -197,7 +197,7 @@ export const NimasaDashboard: React.FC = () => {
         </div>
 
         {/* Tile 2: In hospital now (active) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-emerald-200 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               In Hospital Now (Active)
@@ -218,7 +218,7 @@ export const NimasaDashboard: React.FC = () => {
         </div>
 
         {/* Tile 3: Discharged (inactive) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-surface-border-strong transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Discharged (Inactive)
@@ -236,7 +236,7 @@ export const NimasaDashboard: React.FC = () => {
         </div>
 
         {/* Tile 4: Today's count vs daily quota (e.g. 14 / 20) */}
-        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-5 shadow-card hover:shadow-card-hover hover:border-primary-200 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
               Today&apos;s Count vs Quota
@@ -352,8 +352,60 @@ export const NimasaDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Responsive Table */}
-        <div className="overflow-x-auto">
+        {/* Mobile Stacked Card List (< md) */}
+        <div className="md:hidden divide-y divide-surface-border">
+          {filteredPatients.length === 0 ? (
+            <div className="py-10 px-4 text-center text-ink-muted text-sm">
+              No NIMASA patient records match your current filter.
+            </div>
+          ) : (
+            filteredPatients.map((patient) => (
+              <button
+                key={patient.id}
+                type="button"
+                onClick={() => navigate(`/nimasa/patients/${patient.recordNo}`)}
+                className="w-full text-left p-4 hover:bg-primary-50/40 active:bg-primary-50/70 transition-colors space-y-2.5 group"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs font-semibold text-primary-700">
+                    {patient.recordNo}
+                  </span>
+                  <StatusChip status={patient.status} />
+                </div>
+
+                <div>
+                  <div className="font-semibold text-ink-primary group-hover:text-primary-700 transition-colors">
+                    {patient.fullName}
+                  </div>
+                  <div className="text-xs text-ink-muted">
+                    {patient.nimasaStaffId} • {patient.nimasaDepartment}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <StageChip stage={patient.currentStage} />
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700">
+                    Timeline
+                    <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-ink-muted pt-1 border-t border-surface-border/70">
+                  <span className="font-medium text-ink-secondary">
+                    {patient.currentLocation}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                    {patient.timeInHospital}
+                  </span>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Responsive Table (md+) */}
+        <div className="hidden md:block overflow-x-auto">
           <table
             aria-label="NIMASA Patient Journey Directory"
             className="w-full text-left border-collapse"
