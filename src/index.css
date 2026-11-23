@@ -5,8 +5,14 @@
 @layer base {
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #F4F6F8;
+    color: #0F172A;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Consistent, high-contrast keyboard focus ring */
@@ -16,7 +22,7 @@
   select:focus-visible,
   textarea:focus-visible,
   [tabindex]:focus-visible {
-    outline: 2px solid #2563eb;
+    outline: 2px solid #1d4ed8;
     outline-offset: 2px;
   }
 }

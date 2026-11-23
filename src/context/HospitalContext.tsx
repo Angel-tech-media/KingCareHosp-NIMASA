@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   PatientRecord,
   PatientStage,
@@ -131,26 +131,73 @@ function formatNowTimestamp(): string {
   return `21 Nov 2026, ${hours}:${mins}`;
 }
 
+const STORAGE_KEY = 'kingscare_rmp_qss_state_v1';
+
+function loadPersistedState() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [patients, setPatients] = useState<PatientRecord[]>(() =>
-    enrichPatientsWithRmp(INITIAL_PATIENTS)
+  const persisted = React.useMemo(() => loadPersistedState(), []);
+
+  const [patients, setPatients] = useState<PatientRecord[]>(
+    () => persisted?.patients || enrichPatientsWithRmp(INITIAL_PATIENTS)
   );
   const [departments] = useState<DepartmentMaster[]>(MOCK_DEPARTMENTS);
   const [users] = useState<SystemUser[]>(MOCK_USERS);
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOG);
-  const [activeRole, setActiveRole] = useState<RoleType>('NIMASA');
-  const [sessionCheck, setSessionCheck] = useState<SessionRecognitionCheck>(INITIAL_SESSION_CHECK);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(
+    () => persisted?.auditLog || INITIAL_AUDIT_LOG
+  );
+  const [activeRole, setActiveRole] = useState<RoleType>(
+    () => persisted?.activeRole || 'NIMASA'
+  );
+  const [sessionCheck, setSessionCheck] = useState<SessionRecognitionCheck>(
+    () => persisted?.sessionCheck || INITIAL_SESSION_CHECK
+  );
   const [dailyEquipmentCheck, setDailyEquipmentCheck] = useState<DailyEquipmentCheckState>(
-    INITIAL_DAILY_EQUIPMENT_CHECK
+    () => persisted?.dailyEquipmentCheck || INITIAL_DAILY_EQUIPMENT_CHECK
   );
   const [certificateStock, setCertificateStock] = useState<CertificateStockItem[]>(
-    INITIAL_CERTIFICATE_STOCK
+    () => persisted?.certificateStock || INITIAL_CERTIFICATE_STOCK
   );
   const [verificationEnquiries, setVerificationEnquiries] = useState<VerificationEnquiry[]>(
-    INITIAL_VERIFICATION_ENQUIRIES
+    () => persisted?.verificationEnquiries || INITIAL_VERIFICATION_ENQUIRIES
   );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          patients,
+          auditLog,
+          activeRole,
+          sessionCheck,
+          dailyEquipmentCheck,
+          certificateStock,
+          verificationEnquiries,
+        })
+      );
+    } catch {
+      // Ignore storage quota errors
+    }
+  }, [
+    patients,
+    auditLog,
+    activeRole,
+    sessionCheck,
+    dailyEquipmentCheck,
+    certificateStock,
+    verificationEnquiries,
+  ]);
 
   const appendAudit = (
     actorName: string,
