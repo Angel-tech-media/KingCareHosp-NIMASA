@@ -1,133 +1,99 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowLeft,
-  BarChart3,
-  Clock,
-  TrendingUp,
-  CheckCircle2,
-  Calendar,
-} from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
+import { PageHeader } from '../../components/ui';
 
-const DAILY_ATTENDANCE = [
-  { day: 'Mon 16 Nov', count: 15, quota: 20 },
-  { day: 'Tue 17 Nov', count: 18, quota: 20 },
-  { day: 'Wed 18 Nov', count: 12, quota: 20 },
-  { day: 'Thu 19 Nov', count: 16, quota: 20 },
-  { day: 'Fri 20 Nov', count: 19, quota: 20 },
-  { day: 'Sat 21 Nov (Today)', count: 14, quota: 20 },
+const DAILY_EXAMINATIONS = [
+  { day: 'Mon 16 Nov', count: 15, capacity: 20 },
+  { day: 'Tue 17 Nov', count: 18, capacity: 20 },
+  { day: 'Wed 18 Nov', count: 22, capacity: 20 },
+  { day: 'Thu 19 Nov', count: 19, capacity: 20 },
+  { day: 'Fri 20 Nov', count: 20, capacity: 20 },
 ];
 
 const STAGE_DURATION_AVERAGES = [
-  { stage: '1. Registered -> Awaiting doctor', minutes: 9, benchmark: 15 },
-  { stage: '2. Awaiting doctor -> In assessment', minutes: 18, benchmark: 25 },
-  { stage: '3. First assessment consultation', minutes: 21, benchmark: 25 },
-  { stage: '4. Diagnostic tests (Lab & Radiology)', minutes: 68, benchmark: 90 },
-  { stage: '5. Results ready -> Second assessment', minutes: 24, benchmark: 30 },
-  { stage: '6. Second assessment -> Discharge', minutes: 17, benchmark: 20 },
+  { stage: '1. Reception & ID Gate', minutes: 9, benchmark: 15 },
+  { stage: '2. Vision, Colour & Hearing', minutes: 18, benchmark: 25 },
+  { stage: '3. RMP Physical Assessment', minutes: 21, benchmark: 25 },
+  { stage: '4. Lab & Specialist Referrals', minutes: 68, benchmark: 90 },
+  { stage: '5. Determination & QAF-804-02', minutes: 24, benchmark: 30 },
+  { stage: '6. Certificate Check & Issue', minutes: 17, benchmark: 20 },
 ];
 
 export const NimasaReports: React.FC = () => {
   const { patients } = useHospital();
-  const nimasaCount = patients.filter((p) => p.nimasaMember).length;
+
+  const totalWeeklyExaminations = DAILY_EXAMINATIONS.reduce((sum, d) => sum + d.count, 0);
+  const completedCount = patients.filter(
+    (p) => Boolean(p.rmp?.determination && p.rmp.determination !== 'Pending')
+  ).length;
+  const maxDailyCount = Math.max(...DAILY_EXAMINATIONS.map((d) => d.count));
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
+      <PageHeader
+        title="Compliance Reports"
+        subtitle="STCW Regulation I/9 examination volume, stage turnaround benchmarks, and QSS reporting metrics."
+        actions={
           <Link
             to="/nimasa"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 mb-1"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-navy-900 border border-surface-border bg-surface-card px-3 py-1.5 rounded transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            Back to NIMASA Dashboard
+            <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+            Back to Register
           </Link>
-          <h1 className="text-2xl font-bold text-slate-900">
-            NIMASA Sponsor Reports & Service Level Analytics
-          </h1>
-          <p className="text-sm text-slate-500">
-            Attendance volume and average turnaround time per clinical stage at
-            Kingscare Hospital Abuja.
-          </p>
-        </div>
+        }
+      />
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-200 text-xs font-medium text-slate-700 shadow-sm">
-          <Calendar className="w-4 h-4 text-blue-600" />
-          <span>Reporting Period: 16 Nov – 21 Nov 2026</span>
-        </div>
-      </div>
-
-      {/* Summary KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            6-Day Total Attendance
-          </span>
-          <p className="text-3xl font-bold text-slate-900 mt-2">94 visits</p>
-          <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" />
-            78.3% average daily quota utilization
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Mean End-to-End Turnaround
-          </span>
-          <p className="text-3xl font-bold text-blue-700 mt-2">2h 37m</p>
-          <p className="text-xs text-slate-500 mt-1">
-            From Front Desk check-in to outpatient discharge
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            SLA Compliance Rate
-          </span>
-          <p className="text-3xl font-bold text-emerald-700 mt-2">96.4%</p>
-          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            All {nimasaCount} active records stamped electronically
-          </p>
-        </div>
-      </div>
-
-      {/* Two Main Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart 1: Patients Per Day */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
-                NIMASA Patients Per Day
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Daily arrivals compared against the 20-patient daily quota
-              </p>
-            </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
-              Quota: 20 / day
-            </span>
+      {/* Quiet 3-column hairline KPI strip */}
+      <div className="bg-surface-card rounded border border-surface-border grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-surface-border">
+        <div className="px-6 py-4">
+          <div className="text-xs font-medium text-ink-muted">Examinations (5 Days)</div>
+          <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
+            {totalWeeklyExaminations}
           </div>
+          <div className="text-xs text-ink-secondary mt-1">
+            {completedCount} completed in live clinic register
+          </div>
+        </div>
+        <div className="px-6 py-4">
+          <div className="text-xs font-medium text-ink-muted">Mean Turnaround Time</div>
+          <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
+            2h 37m
+          </div>
+          <div className="text-xs text-emerald-700 mt-1">Within 3h QSS target</div>
+        </div>
+        <div className="px-6 py-4">
+          <div className="text-xs font-medium text-ink-muted">QSS Stage SLA Compliance</div>
+          <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
+            96.4%
+          </div>
+          <div className="text-xs text-ink-secondary mt-1">All 6 pathway stages tracked</div>
+        </div>
+      </div>
 
-          <div className="space-y-4">
-            {DAILY_ATTENDANCE.map((item) => {
-              const pct = Math.round((item.count / item.quota) * 100);
+      {/* Two balanced report cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section className="bg-surface-card rounded border border-surface-border p-6">
+          <div className="flex items-center justify-between pb-4 border-b border-surface-border">
+            <h2 className="text-base font-semibold text-ink-primary">Daily Examination Volume</h2>
+            <span className="text-xs text-ink-muted">Capacity: 20 / day</span>
+          </div>
+          <div className="space-y-4 mt-5">
+            {DAILY_EXAMINATIONS.map((day) => {
+              const pct = Math.round((day.count / Math.max(20, maxDailyCount)) * 100);
               return (
-                <div key={item.day} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-slate-700">
-                      {item.day}
-                    </span>
-                    <span className="font-mono font-bold text-slate-900">
-                      {item.count} / {item.quota} patients ({pct}%)
+                <div key={day.day}>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-medium text-ink-primary">{day.day}</span>
+                    <span className="text-ink-muted tabular-nums">
+                      <strong className="text-ink-primary font-semibold">{day.count}</strong> exams
                     </span>
                   </div>
-                  <div className="w-full h-3.5 bg-slate-100 rounded-lg overflow-hidden border border-slate-200/70">
+                  <div className="h-2.5 bg-surface-canvas rounded overflow-hidden border border-surface-border">
                     <div
-                      className="h-full bg-blue-600 rounded-l-md transition-all"
+                      className="h-full bg-navy-900 rounded-l transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -135,53 +101,36 @@ export const NimasaReports: React.FC = () => {
               );
             })}
           </div>
-        </div>
+        </section>
 
-        {/* Chart 2: Average Time Per Stage */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
-                Average Time Per Stage
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Measured in minutes from electronic trail timestamps vs SLA
-                target
-              </p>
-            </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Within SLA
-            </span>
+        <section className="bg-surface-card rounded border border-surface-border p-6">
+          <div className="flex items-center justify-between pb-4 border-b border-surface-border">
+            <h2 className="text-base font-semibold text-ink-primary">Stage Turnaround Benchmarks</h2>
+            <span className="text-xs text-ink-muted">Mean vs QSS target</span>
           </div>
-
-          <div className="space-y-4">
-            {STAGE_DURATION_AVERAGES.map((row) => {
-              const widthPct = Math.min(100, Math.round((row.minutes / 90) * 100));
+          <div className="space-y-4 mt-5">
+            {STAGE_DURATION_AVERAGES.map((item) => {
+              const pct = Math.min(100, Math.round((item.minutes / item.benchmark) * 100));
               return (
-                <div key={row.stage} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-slate-700">
-                      {row.stage}
-                    </span>
-                    <span className="font-mono font-semibold text-slate-900">
-                      {row.minutes} mins{' '}
-                      <span className="text-slate-400 font-normal">
-                        (SLA &lt; {row.benchmark}m)
-                      </span>
+                <div key={item.stage}>
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-medium text-ink-primary">{item.stage}</span>
+                    <span className="text-ink-muted tabular-nums">
+                      <strong className="text-ink-primary font-semibold">{item.minutes} min</strong>{' '}
+                      <span className="text-ink-muted">/ {item.benchmark} min</span>
                     </span>
                   </div>
-                  <div className="w-full h-3.5 bg-slate-100 rounded-lg overflow-hidden border border-slate-200/70">
+                  <div className="h-2.5 bg-surface-canvas rounded overflow-hidden border border-surface-border">
                     <div
-                      className="h-full bg-emerald-600 rounded-l-md"
-                      style={{ width: `${widthPct}%` }}
+                      className="h-full bg-emerald-700 rounded-l transition-all"
+                      style={{ width: `${pct}%` }}
                     />
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

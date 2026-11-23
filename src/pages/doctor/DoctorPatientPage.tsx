@@ -4,24 +4,17 @@ import {
   ArrowLeft,
   CheckCircle2,
   FlaskConical,
-  BedDouble,
   BellRing,
-  FileText,
-  Pill,
-  LogOut,
   ShieldCheck,
-  Clock,
-  MapPin,
-  Plus,
   UserCheck,
   Eye,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
-import { StageChip, StatusChip } from '../../components/ui/StageChip';
+import { PageHeader, Tabs, TabItem } from '../../components/ui';
 import { OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
 import { RmpExaminationPanel } from './RmpExaminationPanel';
 
-type PatientChartTab = 'RMP_EXAM' | 'SUMMARY' | 'NOTES' | 'ORDERS' | 'RESULTS' | 'TRAIL';
+type PatientChartTab = 'EXAM' | 'INVESTIGATIONS' | 'NOTES' | 'TRAIL';
 
 export const DoctorPatientPage: React.FC = () => {
   const { recordNo } = useParams<{ recordNo: string }>();
@@ -30,59 +23,40 @@ export const DoctorPatientPage: React.FC = () => {
     startFirstAssessment,
     completeFirstAssessment,
     orderTests,
-    admitPatient,
     recordSecondAssessment,
-    addMedication,
-    dischargePatient,
   } = useHospital();
 
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
 
-  const [activeTab, setActiveTab] = useState<PatientChartTab>('RMP_EXAM');
+  const [activeTab, setActiveTab] = useState<PatientChartTab>('EXAM');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
-  // Notes form states
   const [shortSummary, setShortSummary] = useState(
     patient.firstAssessmentSummary ||
-      'First assessment complete, awaiting diagnostic test results.'
+      'Examination in progress; awaiting diagnostic or specialist findings.'
   );
   const [fullNote, setFullNote] = useState(
     patient.firstAssessmentFullNote ||
-      'Patient examined in consultation room. Alert, afebrile, systemic examination documented. Proceeding with targeted laboratory/imaging workup.'
+      'Seafarer examined in private consultation room. Alert, afebrile, systemic examination documented against Section A-I/9.2 criteria.'
   );
   const [secondNote, setSecondNote] = useState(
     patient.secondAssessmentNote ||
-      'Reviewed published investigation findings with patient. Clinical response satisfactory.'
+      'Reviewed published investigation findings against Table A-I/9 and ILO/IMO Guidelines.'
   );
-  const [dischargeText, setDischargeText] = useState(
-    patient.dischargeSummary ||
-      'Discharged home in stable clinical condition with outpatient medication and follow-up guidance.'
-  );
-
-  // Medication form state
-  const [medName, setMedName] = useState('Tab Artemether / Lumefantrine');
-  const [medDosage, setMedDosage] = useState('80/480mg');
-  const [medFreq, setMedFreq] = useState('Twice daily');
-  const [medDuration, setMedDuration] = useState('3 days');
-
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   useEffect(() => {
     setShortSummary(
       patient.firstAssessmentSummary ||
-        'First assessment complete, awaiting blood test results.'
+        'Examination in progress; awaiting diagnostic or specialist findings.'
     );
     setFullNote(
       patient.firstAssessmentFullNote ||
-        'Patient examined in consultation room. Alert, oriented, cardiorespiratory examination normal. Ordering diagnostic workup.'
+        'Seafarer examined in private consultation room. Alert, oriented, cardiorespiratory examination documented.'
     );
     setSecondNote(
       patient.secondAssessmentNote ||
-        'Reviewed published investigation findings with patient. Clinical picture clear; outpatient treatment prescribed.'
-    );
-    setDischargeText(
-      patient.dischargeSummary ||
-        'Discharged home in stable condition. Cleared to resume normal NIMASA duties.'
+        'Reviewed published investigation findings against Table A-I/9 and ILO/IMO Guidelines.'
     );
   }, [patient.id]);
 
@@ -91,16 +65,13 @@ export const DoctorPatientPage: React.FC = () => {
     setTimeout(() => setFeedbackToast(null), 4000);
   };
 
-  const publishedOrders = patient.orders.filter(
-    (o) => o.status === 'Published'
-  );
+  const publishedOrders = patient.orders.filter((o) => o.status === 'Published');
+  const rmp = patient.rmp;
 
   const handleMarkFirstAssessmentComplete = (e: React.FormEvent) => {
     e.preventDefault();
     completeFirstAssessment(patient.id, shortSummary, fullNote);
-    showToast(
-      'First assessment marked complete â€” NIMASA timeline & Audit Log updated!'
-    );
+    showToast('Confidential examination note saved and stamped.');
   };
 
   const handleConfirmTestOrders = (selectedTests: SampleTestCatalogItem[]) => {
@@ -113,751 +84,447 @@ export const DoctorPatientPage: React.FC = () => {
         referenceRange: t.referenceRange,
       }))
     );
-    setActiveTab('ORDERS');
-    showToast(
-      `Ordered ${selectedTests.length} test(s) â€” Stage updated to "Tests requested".`
-    );
-  };
-
-  const handleAdmit = () => {
-    admitPatient(patient.id, 'Executive Ward B - Bed 06');
-    showToast('Patient admitted to Executive Ward B â€” Stage updated to "Admitted".');
+    setActiveTab('INVESTIGATIONS');
+    showToast(`Ordered ${selectedTests.length} investigation(s).`);
   };
 
   const handleSaveSecondAssessment = (e: React.FormEvent) => {
     e.preventDefault();
     recordSecondAssessment(patient.id, secondNote);
-    showToast('Second assessment recorded â€” Stage updated to "Second assessment".');
+    showToast('Post-referral clinical review recorded.');
   };
 
-  const handleAddMedication = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!medName.trim()) return;
-    addMedication(patient.id, {
-      name: medName,
-      dosage: medDosage,
-      frequency: medFreq,
-      duration: medDuration,
-    });
-    setMedName('');
-    showToast('Medication added to patient prescription list.');
-  };
+  const determinationStyle =
+    rmp?.determination === 'Fit'
+      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+      : rmp?.determination === 'Fit with limitation'
+      ? 'bg-amber-50 text-amber-900 border-amber-200'
+      : rmp?.determination === 'Not fit'
+      ? 'bg-red-50 text-red-800 border-red-200'
+      : 'bg-slate-100 text-slate-700 border-slate-300';
 
-  const handleDischarge = (e: React.FormEvent) => {
-    e.preventDefault();
-    dischargePatient(patient.id, dischargeText);
-    showToast('Patient discharged â€” Status set to Inactive / Discharged.');
-  };
+  const tabs: TabItem<PatientChartTab>[] = [
+    { id: 'EXAM', label: 'Examination' },
+    {
+      id: 'INVESTIGATIONS',
+      label: 'Investigations',
+      count: patient.orders.length,
+    },
+    { id: 'NOTES', label: 'Clinical Notes' },
+    { id: 'TRAIL', label: 'Trail', count: patient.timeline.length },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Top Breadcrumb + Quick Preview Link to NIMASA Stage Page */}
+      {/* Breadcrumb & NIMASA Preview Link */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/doctor"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-blue-600"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink-primary transition-colors"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to My Patients Queue</span>
+          <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>Back to Seafarer Queue</span>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <Link
-            to={`/nimasa/patients/${patient.recordNo}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-sm"
-          >
-            <Eye className="w-3.5 h-3.5 text-blue-600" />
-            <span>Preview NIMASA Timeline for {patient.recordNo}</span>
-          </Link>
-        </div>
+        <Link
+          to={`/nimasa/patients/${patient.recordNo}`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
+        >
+          <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+          <span>NIMASA Oversight View ({patient.recordNo})</span>
+        </Link>
       </div>
 
-      {/* Live Toast Notification */}
+      {/* Live Toast */}
       {feedbackToast && (
-        <div className="p-3.5 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-medium shadow-md flex items-center justify-between">
+        <div
+          role="status"
+          className="px-4 py-3 rounded bg-navy-900 text-white text-xs font-medium flex items-center justify-between gap-3"
+        >
           <span className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
             {feedbackToast}
           </span>
-          <span className="text-[11px] text-emerald-100">
+          <span className="text-slate-300 text-[11px] hidden sm:inline">
             Stamped by Dr. Babatunde Fashola-Cole
           </span>
         </div>
       )}
 
-      {/* Results Available Notification Banner */}
-      {publishedOrders.length > 0 && (
-        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
-              <BellRing className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-blue-950">
-                Results available:{' '}
-                {publishedOrders.map((o) => o.testName).join(', ')}
-              </p>
-              <p className="text-xs text-blue-700">
-                Published by {publishedOrders[0].completedBy} at{' '}
-                {publishedOrders[0].publishedAt} â€¢ Ready for Second Assessment
-              </p>
-            </div>
+      {/* Results Ready Banner (Quiet) */}
+      {publishedOrders.length > 0 && rmp?.determination === 'Pending' && (
+        <div className="px-4 py-3 rounded bg-primary-50/70 border border-primary-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <BellRing className="w-4 h-4 text-primary-700 shrink-0" aria-hidden="true" />
+            <span className="text-ink-primary">
+              <strong>Results ready:</strong>{' '}
+              {publishedOrders.map((o) => o.testName).join(', ')}
+            </span>
           </div>
           <button
             type="button"
-            onClick={() => setActiveTab('RESULTS')}
-            className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0"
+            onClick={() => setActiveTab('INVESTIGATIONS')}
+            className="text-primary-700 font-semibold hover:underline"
           >
-            View Published Results ({publishedOrders.length})
+            Review results ({publishedOrders.length})
           </button>
         </div>
       )}
 
-      {/* Patient Identity Header + Decision Buttons */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-bold px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
+      {/* Clean Decluttered Seafarer Header + Single-Line Vitals */}
+      <div className="bg-surface-card border border-surface-border rounded p-6 space-y-4">
+        <PageHeader
+          title={patient.fullName}
+          subtitle={
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-muted">
+              <span className="font-mono font-semibold text-primary-700">
                 {patient.recordNo}
               </span>
-              <StageChip stage={patient.currentStage} />
-              <StatusChip status={patient.status} />
-              {patient.rmp && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-surface-subtle text-ink-secondary border border-surface-border">
-                  {patient.rmp.category}
-                </span>
-              )}
-              {patient.rmp?.isUnder18 && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
-                  Under 18 Â· 1-Yr Max
-                </span>
-              )}
-              {patient.rmp && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-primary-50 text-primary-800 border border-primary-200">
-                  Determination: {patient.rmp.determination}
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl font-bold text-ink-primary">
-              {patient.fullName}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
+              <span>·</span>
+              <span>{rmp?.category || 'Seafarer'}</span>
+              <span>·</span>
               <span>
-                {patient.gender} Â· DOB: {patient.dob} Â· {patient.rmp?.nationality || 'Nigerian'}
+                {patient.gender} · DOB {patient.dob} · {rmp?.nationality || 'Nigerian'}
               </span>
-              <span>Â·</span>
-              <span>ID: {patient.rmp?.idNumber || 'Verified'}</span>
-              <span>Â·</span>
-              <span>Phone: {patient.phone}</span>
-              <span>Â·</span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
-                Arrived: {patient.arrivedAt}
-              </span>
-            </div>
-          </div>
-
-          {/* Primary RMP Clinical Decision Buttons */}
-          {patient.status === 'Active' && (
+              <span>·</span>
+              <span className="font-mono">{rmp?.idNumber || 'ID Verified'}</span>
+              {rmp?.isUnder18 && (
+                <>
+                  <span>·</span>
+                  <span className="text-amber-800 font-medium">Under 18 (1-yr cap)</span>
+                </>
+              )}
+            </span>
+          }
+          actions={
             <div className="flex flex-wrap items-center gap-2.5">
-              {(patient.currentStage === 'Registered' ||
-                patient.currentStage === 'Awaiting doctor') && (
+              {rmp && (
+                <span
+                  className={`px-2.5 py-1 rounded text-xs font-semibold border ${determinationStyle}`}
+                >
+                  {rmp.determination}
+                </span>
+              )}
+
+              {patient.status === 'Active' &&
+                (patient.currentStage === 'Registered' ||
+                  patient.currentStage === 'Awaiting doctor') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startFirstAssessment(patient.id);
+                      showToast('Started STCW Reg. I/9 medical fitness examination.');
+                    }}
+                    className="h-9 px-3.5 rounded bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition-colors"
+                  >
+                    Start Examination
+                  </button>
+                )}
+
+              {patient.status === 'Active' && (
                 <button
                   type="button"
-                  onClick={() => {
-                    startFirstAssessment(patient.id);
-                    showToast('Started STCW Reg. I/9 medical fitness examination.');
-                  }}
-                  className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm"
+                  onClick={() => setIsOrderModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
                 >
-                  Start Examination
+                  <FlaskConical className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Order Investigations</span>
                 </button>
               )}
+            </div>
+          }
+        />
 
+        {/* Quiet Single-Line Vitals Strip */}
+        <div className="pt-3 border-t border-surface-border flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-ink-muted">
+          <span>
+            BP <strong className="text-ink-primary font-mono">{patient.vitals.bp}</strong>
+          </span>
+          <span>
+            Temp <strong className="text-ink-primary font-mono">{patient.vitals.temp}</strong>
+          </span>
+          <span>
+            Pulse <strong className="text-ink-primary font-mono">{patient.vitals.pulse}</strong>
+          </span>
+          <span>
+            SpO₂ <strong className="text-ink-primary font-mono">{patient.vitals.spo2}</strong>
+          </span>
+          <span>
+            Weight <strong className="text-ink-primary font-mono">{patient.vitals.weight}</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* 4 Clean Tabs */}
+      <Tabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onChange={setActiveTab}
+        ariaLabel="Seafarer clinical chart tabs"
+      />
+
+      {/* TAB 1: EXAMINATION (4-Step Stepper) */}
+      {activeTab === 'EXAM' && (
+        <RmpExaminationPanel patient={patient} onFeedback={showToast} />
+      )}
+
+      {/* TAB 2: INVESTIGATIONS (Unified Orders + Published Results) */}
+      {activeTab === 'INVESTIGATIONS' && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-ink-primary">
+                Diagnostic Orders &amp; Published Results
+              </h2>
+              <p className="text-xs text-ink-muted mt-0.5">
+                All required investigations must be published before a medical certificate can be issued (30-day cap).
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/lab"
+                className="h-8 px-3 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle inline-flex items-center text-xs font-medium text-ink-secondary"
+              >
+                Laboratory
+              </Link>
+              <Link
+                to="/radiology"
+                className="h-8 px-3 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle inline-flex items-center text-xs font-medium text-ink-secondary"
+              >
+                Radiology
+              </Link>
               <button
                 type="button"
                 onClick={() => setIsOrderModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                className="h-8 px-3 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold"
               >
-                <FlaskConical className="w-4 h-4" aria-hidden="true" />
-                <span>Order Investigations / Referral</span>
+                + Order Tests
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Vitals Strip */}
-        <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">
-              Blood Pressure
-            </span>
-            <span className="text-sm font-bold text-slate-900">
-              {patient.vitals.bp}
-            </span>
           </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">Temperature</span>
-            <span className="text-sm font-bold text-slate-900">
-              {patient.vitals.temp}
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">Pulse Rate</span>
-            <span className="text-sm font-bold text-slate-900">
-              {patient.vitals.pulse}
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">SpOâ‚‚</span>
-            <span className="text-sm font-bold text-slate-900">
-              {patient.vitals.spo2}
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">Weight</span>
-            <span className="text-sm font-bold text-slate-900">
-              {patient.vitals.weight}
-            </span>
-          </div>
-        </div>
-      </div>
 
-      {/* 5 Tabs: Summary / Notes / Orders / Results / Trail */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="border-b border-slate-200 px-6 pt-3 flex flex-wrap items-center gap-2 bg-slate-50/60">
-          {(
-            [
-              { id: 'RMP_EXAM', label: 'STCW Reg. I/9 Exam & Cert' },
-              { id: 'SUMMARY', label: 'Summary' },
-              { id: 'NOTES', label: 'Clinical Notes' },
-              {
-                id: 'ORDERS',
-                label: `Orders (${patient.orders.length})`,
-              },
-              {
-                id: 'RESULTS',
-                label: `Results (${publishedOrders.length})`,
-              },
-              {
-                id: 'TRAIL',
-                label: `Trail (${patient.timeline.length})`,
-              },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-600 text-blue-700 bg-white rounded-t-lg'
-                  : 'border-transparent text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-6">
-          {/* TAB 0: STCW REG. I/9 EXAMINATION & CERTIFICATION */}
-          {activeTab === 'RMP_EXAM' && (
-            <RmpExaminationPanel patient={patient} onFeedback={showToast} />
-          )}
-
-          {/* TAB 1: SUMMARY */}
-          {activeTab === 'SUMMARY' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-base font-bold text-slate-900">
-                  Clinical Overview & Sponsor Consent
-                </h3>
-                <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs sm:text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">NIMASA Sponsor Member:</span>
-                    <span className="font-semibold text-slate-900">
-                      {patient.nimasaMember ? 'Yes' : 'No'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">
-                      Consent to Share Stage Trail:
-                    </span>
-                    <span className="font-semibold text-emerald-700">
-                      {patient.consentToShareWithNimasa
-                        ? 'Granted (Stage & Timestamps Only)'
-                        : 'Not Shared'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Current Stage:</span>
-                    <span className="font-semibold text-blue-700">
-                      {patient.currentStage}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Admission Status:</span>
-                    <span className="font-semibold text-slate-900">
-                      {patient.isAdmitted
-                        ? `Inpatient (${patient.wardRoom})`
-                        : 'Outpatient'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-lg border border-slate-200 space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    First Assessment Public Summary (Shared on Trail Tooltip)
-                  </h4>
-                  <p className="text-sm text-slate-800">
-                    {patient.firstAssessmentSummary ||
-                      'No first assessment summary recorded yet.'}
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-lg border border-slate-200 bg-amber-50/40 space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                    Confidential Full Clinical Note (Kingscare Only â€” Hidden from
-                    NIMASA & Lab)
-                  </h4>
-                  <p className="text-sm text-slate-800">
-                    {patient.firstAssessmentFullNote ||
-                      'No full clinical note entered yet.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-base font-bold text-slate-900">
-                  Active Medications & Discharge Status
-                </h3>
-                {patient.medications.length === 0 ? (
-                  <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500">
-                    No medications prescribed yet. Open the{' '}
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('NOTES')}
-                      className="text-blue-600 font-semibold underline"
-                    >
-                      Notes & Discharge
-                    </button>{' '}
-                    tab to prescribe.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {patient.medications.map((m) => (
-                      <div
-                        key={m.id}
-                        className="p-3 rounded-lg border border-slate-200 flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {m.name} ({m.dosage})
-                          </p>
-                          <p className="text-slate-500">
-                            {m.frequency} â€¢ Duration: {m.duration}
-                          </p>
-                        </div>
-                        <span className="text-[11px] text-slate-400">
-                          {m.prescribedAt}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {patient.dischargeSummary && (
-                  <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 space-y-1">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                      Discharge Summary
-                    </h4>
-                    <p className="text-sm text-emerald-950">
-                      {patient.dischargeSummary}
-                    </p>
-                  </div>
-                )}
-              </div>
+          {patient.orders.length === 0 ? (
+            <div className="p-10 text-center rounded border border-dashed border-surface-border-strong bg-surface-card text-sm text-ink-muted">
+              No diagnostic investigations ordered for this seafarer.
             </div>
-          )}
-
-          {/* TAB 2: NOTES (First assessment, decisions, Second assessment, Medication, Discharge) */}
-          {activeTab === 'NOTES' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Left 7 Cols: First Assessment & Decision Actions */}
-              <div className="lg:col-span-7 space-y-6">
-                <form
-                  onSubmit={handleMarkFirstAssessmentComplete}
-                  className="p-5 rounded-lg border border-slate-200 bg-slate-50/40 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                      <h3 className="text-base font-bold text-slate-900">
-                        1. First Assessment Form
-                      </h3>
-                    </div>
-                    <span className="text-xs text-slate-500">
-                      Stamps &quot;First assessment complete&quot;
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Short Stage Summary (Shown on NIMASA Timeline Tooltip)
-                    </label>
-                    <input
-                      type="text"
-                      value={shortSummary}
-                      onChange={(e) => setShortSummary(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      placeholder="e.g. First assessment complete, awaiting blood test results"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Clinical Note (Confidential â€” Held by Kingscare Only;
-                      Hidden from NIMASA & Lab)
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={fullNote}
-                      onChange={(e) => setFullNote(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                      placeholder="Detailed presenting complaint, history, physical exam findings, and differential diagnosis..."
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                    <button
-                      type="submit"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Mark first assessment complete</span>
-                    </button>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsOrderModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-primary-50 text-primary-700 border border-primary-300 text-xs font-semibold shadow-sm transition-colors"
-                      >
-                        <FlaskConical className="w-3.5 h-3.5" aria-hidden="true" />
-                        <span>Order Investigations / Referral (RQP-604)</span>
-                      </button>
-                    </div>
-                  </div>
-                </form>
-
-                {/* Second Assessment Section */}
-                <form
-                  onSubmit={handleSaveSecondAssessment}
-                  className="p-5 rounded-lg border border-slate-200 bg-white space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900">
-                      2. Second Assessment (Post-Results Review)
-                    </h3>
-                    <span className="text-xs text-slate-500">
-                      Stamps &quot;Second assessment&quot;
-                    </span>
-                  </div>
-
-                  <textarea
-                    rows={3}
-                    value={secondNote}
-                    onChange={(e) => setSecondNote(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    placeholder="Interpretation of Lab / Radiology findings and clinical plan..."
-                  />
-
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Save & Mark Second Assessment</span>
-                  </button>
-                </form>
-              </div>
-
-              {/* Right 5 Cols: Record Completeness Check (RQC-801-01) */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="p-5 rounded-lg border border-surface-border bg-surface-canvas space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-ink-primary flex items-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
-                      Record Completeness Check (RQC-801-01)
-                    </h3>
-                    <span className="text-[11px] font-semibold text-primary-700">
-                      RQP-801 §7.2
-                    </span>
-                  </div>
-                  <p className="text-xs text-ink-muted">
-                    Checked by a person other than the examining RMP within <strong>1 working day</strong> for
-                    Not Fit / Limited cases (5 working days for Fit).
-                  </p>
-                  <ul className="space-y-1.5 text-xs">
-                    {[
-                      { label: "1. RQF-601-01 ID copy & live day photograph", done: Boolean(patient.rmp?.idVerifiedOriginal && patient.rmp?.photoCaptured) },
-                      { label: "2. RQF-601-02 Seafarer health declaration signed", done: Boolean(patient.rmp?.healthDeclarationSigned) },
-                      { label: "3. RQF-503-01 Duties & department statement", done: Boolean(patient.rmp?.category) },
-                      { label: "4. QAF-804-01 & RQF-602-01 examination record", done: Boolean(patient.rmp?.statutoryCriteria) },
-                      { label: "5. RQF-603-01 Vision, colour & audiometry signed", done: Boolean(patient.rmp?.visionHearing) },
-                      { label: "6. Investigation / specialist reports filed", done: patient.orders.every((o) => o.status === "Published") },
-                      { label: "7. RQC-605-01 Determination check complete", done: patient.rmp?.determination !== "Pending" },
-                      { label: "8. QAF-804-02 Right of review copy (if Limited/Not fit)", done: patient.rmp?.determination === "Fit" || Boolean(patient.rmp?.rightOfReview) },
-                      { label: "9. QAF-805-01 & RQF-701-01 copies (where issued)", done: patient.rmp?.determination === "Not fit" || Boolean(patient.rmp?.issuedCertificate) },
-                    ].map((row) => (
-                      <li
-                        key={row.label}
-                        className="flex items-center justify-between gap-2 p-2 rounded bg-surface-card border border-surface-border"
-                      >
-                        <span className="text-ink-secondary">{row.label}</span>
-                        <span
-                          className={`text-[11px] font-bold shrink-0 ${
-                            row.done ? "text-emerald-700" : "text-amber-700"
-                          }`}
-                        >
-                          {row.done ? "Complete" : "Pending"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: ORDERS */}
-          {activeTab === 'ORDERS' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">
-                    Diagnostic Test Orders (Laboratory & Radiology)
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Admitted and outpatient orders sent to Lab or Radiology.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/lab"
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700"
-                  >
-                    Go to Laboratory View
-                  </Link>
-                  <Link
-                    to="/radiology"
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700"
-                  >
-                    Go to Radiology View
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setIsOrderModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Order More Tests</span>
-                  </button>
-                </div>
-              </div>
-
-              {patient.orders.length === 0 ? (
-                <div className="p-8 text-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-500">
-                  No diagnostic tests ordered for this patient yet. Click{' '}
-                  <strong>&quot;Send for tests&quot;</strong> to open the test
-                  catalog modal.
-                </div>
-              ) : (
-                <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                        <th className="py-3 px-4">Order ID</th>
-                        <th className="py-3 px-4">Department</th>
-                        <th className="py-3 px-4">Category</th>
-                        <th className="py-3 px-4">Test Name</th>
-                        <th className="py-3 px-4">Ordered At</th>
-                        <th className="py-3 px-4">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {patient.orders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-700">
-                            {ord.id}
-                          </td>
-                          <td className="py-3 px-4 text-xs font-semibold text-slate-800">
-                            {ord.department}
-                          </td>
-                          <td className="py-3 px-4 text-xs text-slate-600">
-                            {ord.category}
-                          </td>
-                          <td className="py-3 px-4 font-semibold text-slate-900">
-                            {ord.testName}
-                          </td>
-                          <td className="py-3 px-4 text-xs text-slate-500">
-                            {ord.orderedAt}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold border ${
-                                ord.status === 'Published'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : ord.status === 'Draft'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}
-                            >
-                              {ord.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 4: RESULTS */}
-          {activeTab === 'RESULTS' && (
-            <div className="space-y-4">
-              {publishedOrders.length > 0 && (
-                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-                  <BellRing className="w-5 h-5 text-emerald-700 shrink-0" />
-                  <div className="text-xs sm:text-sm">
-                    <p className="font-bold text-emerald-950">
-                      Results available:{' '}
-                      {publishedOrders.map((o) => o.testName).join(', ')}
-                    </p>
-                    <p className="text-emerald-800 text-xs">
-                      Verified and released by diagnostic department.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {publishedOrders.length === 0 ? (
-                <div className="p-8 text-center rounded-lg border border-dashed border-slate-300 text-sm text-slate-500">
-                  No published results yet. Switch to{' '}
-                  <Link
-                    to="/lab"
-                    className="text-blue-600 font-semibold underline"
-                  >
-                    Laboratory
-                  </Link>{' '}
-                  or{' '}
-                  <Link
-                    to="/radiology"
-                    className="text-blue-600 font-semibold underline"
-                  >
-                    Radiology
-                  </Link>{' '}
-                  in the top role switcher to publish pending orders.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {publishedOrders.map((ord) => (
-                    <div
-                      key={ord.id}
-                      className="p-5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
-                        <div>
-                          <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
-                            {ord.department} â€¢ {ord.category}
-                          </span>
-                          <h4 className="text-base font-bold text-slate-900">
-                            {ord.testName}
-                          </h4>
-                        </div>
-                        <div className="text-right text-xs text-slate-500">
-                          <p className="font-semibold text-slate-800">
-                            Verified by: {ord.completedBy}
-                          </p>
-                          <p>Published: {ord.publishedAt}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs sm:text-sm">
-                        <div className="p-3 rounded-lg bg-white border border-slate-200">
-                          <span className="text-[11px] font-bold uppercase text-slate-400 block mb-1">
-                            Published Findings / Values
-                          </span>
-                          <p className="font-semibold text-slate-900">
-                            {ord.publishedResult}
-                          </p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-white border border-slate-200">
-                          <span className="text-[11px] font-bold uppercase text-slate-400 block mb-1">
-                            Reference Range & Scientist Remarks
-                          </span>
-                          <p className="text-slate-700">
-                            <strong>Ref:</strong> {ord.referenceRange || 'N/A'}
-                          </p>
-                          {ord.scientistRemarks && (
-                            <p className="text-slate-500 text-xs mt-1">
-                              <strong>Note:</strong> {ord.scientistRemarks}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 5: TRAIL */}
-          {activeTab === 'TRAIL' && (
-            <div className="space-y-3">
-              <h3 className="text-base font-bold text-slate-900">
-                Patient Electronic Trail ({patient.recordNo})
-              </h3>
-              <div className="divide-y divide-slate-200 border border-slate-200 rounded-lg">
-                {patient.timeline.map((t, i) => (
-                  <div
-                    key={`${t.stage}-${i}`}
-                    className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <StageChip stage={t.stage} />
-                        <span className="text-xs font-semibold text-slate-700">
-                          {t.reachedAt}
-                        </span>
-                      </div>
-                      <p className="text-xs sm:text-sm text-slate-700">
-                        {t.publicSummary}
-                      </p>
-                    </div>
-                    <div className="text-xs text-slate-500 flex items-center gap-1.5 shrink-0">
-                      <UserCheck className="w-4 h-4 text-blue-600" />
-                      <span>
-                        <strong>{t.actorName}</strong> ({t.actorRole})
+          ) : (
+            <div className="bg-surface-card border border-surface-border rounded divide-y divide-surface-border">
+              {patient.orders.map((ord) => (
+                <div key={ord.id} className="p-5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className="font-semibold text-sm text-ink-primary">
+                        {ord.testName}
+                      </span>
+                      <span className="font-mono text-xs text-ink-muted">{ord.id}</span>
+                      <span className="text-xs text-ink-muted">
+                        · {ord.department} ({ord.category})
                       </span>
                     </div>
+                    <span
+                      className={`px-2 py-0.5 rounded text-xs font-medium border ${
+                        ord.status === 'Published'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : ord.status === 'Draft'
+                          ? 'bg-amber-50 text-amber-900 border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
+                      }`}
+                    >
+                      {ord.status}
+                    </span>
                   </div>
-                ))}
-              </div>
+
+                  {ord.status === 'Published' ? (
+                    <div className="p-3.5 rounded bg-surface-canvas border border-surface-border text-xs space-y-1.5">
+                      <div className="font-medium text-ink-primary">
+                        {ord.publishedResult}
+                      </div>
+                      <div className="text-ink-muted flex flex-wrap gap-x-4 gap-y-1">
+                        <span>Ref: {ord.referenceRange || 'N/A'}</span>
+                        <span>Verified by {ord.completedBy} · {ord.publishedAt}</span>
+                      </div>
+                      {ord.scientistRemarks && (
+                        <div className="text-ink-secondary">Note: {ord.scientistRemarks}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-ink-muted">
+                      Ordered {ord.orderedAt} — awaiting publication from {ord.department}.
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Order Tests Modal */}
+      {/* TAB 3: CLINICAL NOTES & RECORD COMPLETENESS */}
+      {activeTab === 'NOTES' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 space-y-6">
+            <form
+              onSubmit={handleMarkFirstAssessmentComplete}
+              className="p-5 rounded border border-surface-border bg-surface-card space-y-4"
+            >
+              <div>
+                <h2 className="text-sm font-semibold text-ink-primary">
+                  Confidential Clinical Note (QAF-804-01)
+                </h2>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  Held strictly by Kingscare under QA-P-808. Hidden from NIMASA &amp; Laboratory.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
+                  Non-Clinical Stage Summary
+                </label>
+                <input
+                  type="text"
+                  value={shortSummary}
+                  onChange={(e) => setShortSummary(e.target.value)}
+                  className="w-full h-9 rounded border border-surface-border-strong px-3 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink-secondary mb-1">
+                  Detailed Examination Findings
+                </label>
+                <textarea
+                  rows={4}
+                  value={fullNote}
+                  onChange={(e) => setFullNote(e.target.value)}
+                  className="w-full rounded border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="h-9 px-4 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+              >
+                Save Clinical Note
+              </button>
+            </form>
+
+            <form
+              onSubmit={handleSaveSecondAssessment}
+              className="p-5 rounded border border-surface-border bg-surface-card space-y-3"
+            >
+              <h2 className="text-sm font-semibold text-ink-primary">
+                Post-Referral Review Note (RQP-604)
+              </h2>
+              <textarea
+                rows={3}
+                value={secondNote}
+                onChange={(e) => setSecondNote(e.target.value)}
+                className="w-full rounded border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+              />
+              <button
+                type="submit"
+                className="h-9 px-4 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle text-xs font-semibold text-ink-primary transition-colors"
+              >
+                Save Post-Referral Review
+              </button>
+            </form>
+          </div>
+
+          <div className="lg:col-span-5">
+            <div className="p-5 rounded border border-surface-border bg-surface-card space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-ink-primary flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+                  Record Completeness (RQC-801-01)
+                </h2>
+                <span className="text-[11px] font-mono text-ink-muted">RQP-801</span>
+              </div>
+              <p className="text-xs text-ink-muted">
+                Checked independently within 1 working day for Not Fit / Limited cases (5 days for Fit).
+              </p>
+              <ul className="divide-y divide-surface-border text-xs">
+                {[
+                  {
+                    label: '1. ID copy & live day photograph (RQF-601-01)',
+                    done: Boolean(rmp?.idVerifiedOriginal && rmp?.photoCaptured),
+                  },
+                  {
+                    label: '2. Signed health declaration (RQF-601-02)',
+                    done: Boolean(rmp?.healthDeclarationSigned),
+                  },
+                  {
+                    label: '3. Duties & department statement (RQF-503-01)',
+                    done: Boolean(rmp?.category),
+                  },
+                  {
+                    label: '4. Examination declarations (QAF-804-01 / RQF-602-01)',
+                    done: Boolean(rmp?.statutoryCriteria),
+                  },
+                  {
+                    label: '5. Vision, colour & audiometry signed (RQF-603-01)',
+                    done: Boolean(rmp?.visionHearing),
+                  },
+                  {
+                    label: '6. Investigation / specialist reports filed',
+                    done: patient.orders.every((o) => o.status === 'Published'),
+                  },
+                  {
+                    label: '7. Determination check complete (RQC-605-01)',
+                    done: rmp?.determination !== 'Pending',
+                  },
+                  {
+                    label: '8. Right of review notice (QAF-804-02)',
+                    done: rmp?.determination === 'Fit' || Boolean(rmp?.rightOfReview),
+                  },
+                  {
+                    label: '9. Certificate & supplement copies (QAF-805-01)',
+                    done:
+                      rmp?.determination === 'Not fit' || Boolean(rmp?.issuedCertificate),
+                  },
+                ].map((row) => (
+                  <li key={row.label} className="py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-ink-secondary">{row.label}</span>
+                    <span
+                      className={`text-[11px] font-semibold shrink-0 ${
+                        row.done ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                    >
+                      {row.done ? 'Complete' : 'Pending'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: ELECTRONIC TRAIL */}
+      {activeTab === 'TRAIL' && (
+        <div className="bg-surface-card border border-surface-border rounded divide-y divide-surface-border">
+          {patient.timeline.map((t, i) => (
+            <div
+              key={`${t.stage}-${i}`}
+              className="p-4 sm:px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2.5 text-xs">
+                  <span className="font-semibold text-ink-primary">{t.stage}</span>
+                  <span className="font-mono text-ink-muted">{t.reachedAt}</span>
+                </div>
+                <p className="text-xs text-ink-secondary">{t.publicSummary}</p>
+              </div>
+              <div className="text-xs text-ink-muted flex items-center gap-1.5 shrink-0">
+                <UserCheck className="w-3.5 h-3.5 text-primary-700" aria-hidden="true" />
+                <span>
+                  <strong className="text-ink-secondary">{t.actorName}</strong> ({t.actorRole})
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <OrderTestsModal
         isOpen={isOrderModalOpen}
         onClose={() => setIsOrderModalOpen(false)}
