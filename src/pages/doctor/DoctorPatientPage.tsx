@@ -223,44 +223,44 @@ export const DoctorPatientPage: React.FC = () => {
               </span>
               <StageChip stage={patient.currentStage} />
               <StatusChip status={patient.status} />
-              {patient.nimasaMember && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  NIMASA Member ({patient.nimasaStaffId})
+              {patient.rmp && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-surface-subtle text-ink-secondary border border-surface-border">
+                  {patient.rmp.category}
                 </span>
               )}
-              {patient.isAdmitted && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">
-                  <BedDouble className="w-3.5 h-3.5" />
-                  Admitted: {patient.wardRoom}
+              {patient.rmp?.isUnder18 && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                  Under 18 · 1-Yr Max
+                </span>
+              )}
+              {patient.rmp && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-primary-50 text-primary-800 border border-primary-200">
+                  Determination: {patient.rmp.determination}
                 </span>
               )}
             </div>
 
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="text-2xl font-bold text-ink-primary">
               {patient.fullName}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
               <span>
-                {patient.gender} • DOB: {patient.dob}
+                {patient.gender} · DOB: {patient.dob} · {patient.rmp?.nationality || 'Nigerian'}
               </span>
-              <span>•</span>
+              <span>·</span>
+              <span>ID: {patient.rmp?.idNumber || 'Verified'}</span>
+              <span>·</span>
               <span>Phone: {patient.phone}</span>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1 text-slate-700 font-medium">
-                <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                {patient.currentLocation}
-              </span>
-              <span>•</span>
+              <span>·</span>
               <span className="inline-flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-slate-400" />
-                {patient.timeInHospital}
+                <Clock className="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
+                Arrived: {patient.arrivedAt}
               </span>
             </div>
           </div>
 
-          {/* Primary Clinical Decision Buttons */}
+          {/* Primary RMP Clinical Decision Buttons */}
           {patient.status === 'Active' && (
             <div className="flex flex-wrap items-center gap-2.5">
               {(patient.currentStage === 'Registered' ||
@@ -269,32 +269,21 @@ export const DoctorPatientPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     startFirstAssessment(patient.id);
-                    showToast('Started first assessment.');
+                    showToast('Started STCW Reg. I/9 medical fitness examination.');
                   }}
                   className="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm"
                 >
-                  Start Assessment Now
+                  Start Examination
                 </button>
               )}
 
               <button
                 type="button"
                 onClick={() => setIsOrderModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold shadow-sm transition-colors"
               >
-                <FlaskConical className="w-4 h-4" />
-                <span>Send for tests</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleAdmit}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-purple-50 text-purple-800 border border-purple-300 text-xs font-semibold shadow-sm transition-colors"
-              >
-                <BedDouble className="w-4 h-4" />
-                <span>
-                  {patient.isAdmitted ? 'Update Ward Admission' : 'Admit patient'}
-                </span>
+                <FlaskConical className="w-4 h-4" aria-hidden="true" />
+                <span>Order Investigations / Referral</span>
               </button>
             </div>
           )}
