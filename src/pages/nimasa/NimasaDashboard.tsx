@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Search, ShieldCheck, FileBarChart, Info } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { FitnessDetermination, SeafarerCategory } from '../../types';
-import { PRACTICE_RECOGNITION } from '../../data/mockRmpData';
 import { PageHeader, SlideOver } from '../../components/ui';
 
 const ALL_CATEGORIES: SeafarerCategory[] = [
@@ -36,7 +35,7 @@ const DeterminationText: React.FC<{ determination: FitnessDetermination }> = ({
 
 export const NimasaDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { patients, certificateStock } = useHospital();
+  const { patients, certificateStock, practice } = useHospital();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [determinationFilter, setDeterminationFilter] = useState<
@@ -93,7 +92,7 @@ export const NimasaDashboard: React.FC = () => {
         title="Seafarer Register"
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>{PRACTICE_RECOGNITION.practiceName} · Full Recognition</span>
+            <span>{practice.practiceName} · {practice.status} Recognition</span>
             <button
               type="button"
               onClick={() => setPracticeOpen(true)}
@@ -370,7 +369,7 @@ export const NimasaDashboard: React.FC = () => {
         isOpen={practiceOpen}
         onClose={() => setPracticeOpen(false)}
         title="Recognized Practice Details"
-        subtitle={`Schedule of Recognition (RQD-02) · ${PRACTICE_RECOGNITION.certificateNo}`}
+        subtitle={`Schedule of Recognition (RQD-02) · ${practice.certificateNo}`}
       >
         <dl className="space-y-4 text-sm">
           <div>
@@ -378,7 +377,7 @@ export const NimasaDashboard: React.FC = () => {
               Practice Name
             </dt>
             <dd className="text-ink-primary font-medium mt-1">
-              {PRACTICE_RECOGNITION.practiceName}
+              {practice.practiceName}
             </dd>
           </div>
           <div>
@@ -386,7 +385,7 @@ export const NimasaDashboard: React.FC = () => {
               Recognized Premises (P-1)
             </dt>
             <dd className="text-ink-secondary mt-1">
-              Plot 412 Ahmadu Bello Way, Garki II, Abuja, FCT
+              {practice.address}
             </dd>
           </div>
           <div className="grid grid-cols-2 gap-4 pt-2 border-t border-surface-border">
@@ -395,7 +394,7 @@ export const NimasaDashboard: React.FC = () => {
                 Status
               </dt>
               <dd className="text-emerald-800 font-medium mt-1">
-                {PRACTICE_RECOGNITION.status} Recognition
+                {practice.status} Recognition
               </dd>
             </div>
             <div>
@@ -403,7 +402,7 @@ export const NimasaDashboard: React.FC = () => {
                 Valid Until
               </dt>
               <dd className="font-mono text-ink-primary mt-1">
-                {PRACTICE_RECOGNITION.expiresOn}
+                {practice.expiresOn}
               </dd>
             </div>
             <div>
@@ -411,7 +410,7 @@ export const NimasaDashboard: React.FC = () => {
                 Medical Director
               </dt>
               <dd className="text-ink-secondary mt-1">
-                {PRACTICE_RECOGNITION.medicalDirector}
+                {practice.medicalDirector}
               </dd>
             </div>
             <div>
@@ -419,7 +418,7 @@ export const NimasaDashboard: React.FC = () => {
                 Renewal Check Due
               </dt>
               <dd className="font-mono text-ink-primary mt-1">
-                {PRACTICE_RECOGNITION.renewalCheckDue}
+                {practice.renewalCheckDue}
               </dd>
             </div>
           </div>
@@ -428,8 +427,8 @@ export const NimasaDashboard: React.FC = () => {
               Engagement &amp; Returns
             </dt>
             <dd className="text-ink-secondary mt-1">
-              Form QAF-802-01 signed {PRACTICE_RECOGNITION.engagementSigned} ·{' '}
-              {PRACTICE_RECOGNITION.returnFrequency}
+              Form QAF-802-01 signed {practice.engagementSigned} ·{' '}
+              {practice.returnFrequency}
             </dd>
           </div>
         </dl>

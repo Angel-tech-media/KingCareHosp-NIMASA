@@ -100,43 +100,55 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
     },
   ];
 
-  const handleSaveStep1 = () => {
-    saveVisionHearing(patient.id, vh);
-    onFeedback('Vision, colour vision & audiometry record saved.');
-    setActiveStep(2);
+  const handleSaveStep1 = async () => {
+    try {
+      await saveVisionHearing(patient.id, vh);
+      onFeedback('Vision, colour vision & audiometry record saved.');
+      setActiveStep(2);
+    } catch (err) {
+      onFeedback(err instanceof Error ? err.message : 'Failed to save vision and hearing.');
+    }
   };
 
-  const handleSaveStep2 = () => {
-    saveStatutoryCriteria(patient.id, criteria);
-    onFeedback('Section A-I/9.2 statutory fitness criteria saved.');
-    setActiveStep(3);
+  const handleSaveStep2 = async () => {
+    try {
+      await saveStatutoryCriteria(patient.id, criteria);
+      onFeedback('Section A-I/9.2 statutory fitness criteria saved.');
+      setActiveStep(3);
+    } catch (err) {
+      onFeedback(err instanceof Error ? err.message : 'Failed to save statutory criteria.');
+    }
   };
 
-  const handleSaveStep3 = () => {
+  const handleSaveStep3 = async () => {
     if (liveEvaluation.deckZeroDiscretionBlock && determination === 'Fit') {
       onFeedback(
         'Blocked (A-I/9.5): Zero discretion for Deck/Lookout vision or colour failure. Select Not fit or Fit with limitation.'
       );
       return;
     }
-    recordFitnessDetermination(
-      patient.id,
-      determination,
-      basis,
-      determination === 'Fit with limitation' ? limitation : undefined,
-      reviewNoticeSigned
-    );
-    onFeedback(
-      `Determination "${determination}" recorded${
-        determination !== 'Fit' ? ' and QAF-804-02 Right of Review issued' : ''
-      }.`
-    );
-    setActiveStep(4);
+    try {
+      await recordFitnessDetermination(
+        patient.id,
+        determination,
+        basis,
+        determination === 'Fit with limitation' ? limitation : undefined,
+        reviewNoticeSigned
+      );
+      onFeedback(
+        `Determination "${determination}" recorded${
+          determination !== 'Fit' ? ' and QAF-804-02 Right of Review issued' : ''
+        }.`
+      );
+      setActiveStep(4);
+    } catch (err) {
+      onFeedback(err instanceof Error ? err.message : 'Failed to record determination.');
+    }
   };
 
-  const handleIssueCertificate = () => {
+  const handleIssueCertificate = async () => {
     setIssueError(null);
-    const res = issueMedicalCertificate(
+    const res = await issueMedicalCertificate(
       patient.id,
       selectedSerial,
       secondChecker,

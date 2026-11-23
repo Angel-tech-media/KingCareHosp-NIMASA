@@ -19,6 +19,31 @@ export type RoleType =
   | 'RADIOLOGY'
   | 'ADMIN';
 
+export interface AuthUser {
+  id: string;
+  fullName: string;
+  email: string;
+  roleTitle: string;
+  portalRole: RoleType;
+  department: string;
+  licenseNo?: string;
+  status: 'Active' | 'On Leave' | 'Suspended';
+}
+
+export interface PracticeSettings {
+  practiceName: string;
+  address: string;
+  certificateNo: string;
+  status: string;
+  recognizedFrom: string;
+  expiresOn: string;
+  renewalCheckDue: string;
+  engagementSigned: string;
+  returnFrequency: string;
+  stateFacilityRegNo: string;
+  medicalDirector: string;
+}
+
 export interface StageHistoryEntry {
   stage: PatientStage;
   reachedAt: string;
@@ -63,10 +88,13 @@ export type SeafarerCategory =
   | 'Catering / Other';
 
 export type IdDocumentType =
-  | 'International Passport'
-  | 'NIN National ID'
   | "Seafarer's Identity Document"
-  | 'Discharge Book';
+  | 'International Passport'
+  | 'Passport'
+  | 'NIN National ID'
+  | 'National ID Card (NIMC)'
+  | 'Discharge Book'
+  | 'Certificate of Competency';
 
 export type FitnessDetermination =
   | 'Pending'
@@ -78,7 +106,8 @@ export type CieStandard =
   | 'CIE 1'
   | 'CIE 2'
   | 'CIE 3'
-  | 'Not met'
+  | 'Not tested'
+  | 'Failed'
   | 'Pending specialist';
 
 export interface VisionHearingRecord {
@@ -249,10 +278,15 @@ export interface DepartmentStaff {
 export interface DepartmentEquipment {
   id: string;
   name: string;
+  manufacturer?: string;
   model: string;
   yearOfMake: number;
   serialNo: string;
-  status: 'Operational' | 'Calibration Due' | 'Maintenance';
+  calibrationCertNo?: string;
+  lastCalibrated?: string;
+  nextCalibrationDue?: string;
+  registeredBy?: string;
+  status: 'Operational' | 'Calibration Due' | 'Maintenance' | 'Out of Use';
 }
 
 export interface DepartmentCertificate {
@@ -291,7 +325,8 @@ export interface SystemUser {
   role: string;
   portalCategory: RoleType;
   department: string;
-  status: 'Active' | 'On Leave';
+  licenseNo?: string;
+  status: 'Active' | 'On Leave' | 'Suspended';
   lastLogin: string;
 }
 

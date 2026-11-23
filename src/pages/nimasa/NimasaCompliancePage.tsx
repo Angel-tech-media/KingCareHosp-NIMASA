@@ -27,10 +27,10 @@ export const NimasaCompliancePage: React.FC = () => {
   const [lastResult, setLastResult] = useState<VerificationEnquiry | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!certInput.trim()) return;
-    const res = verifyCertificate(certInput, enquirerInput);
+    const res = await verifyCertificate(certInput, enquirerInput);
     setLastResult(res);
   };
 

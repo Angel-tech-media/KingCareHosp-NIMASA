@@ -13,7 +13,6 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useHospital } from '../context/HospitalContext';
-import { PRACTICE_RECOGNITION } from '../data/mockRmpData';
 import { FitnessDetermination } from '../types';
 
 type TimeRange = '7D' | '30D' | '6M';
@@ -80,6 +79,7 @@ export const OverviewDashboard: React.FC = () => {
   const navigate = useNavigate();
   const {
     patients,
+    practice,
     certificateStock,
     dailyEquipmentCheck,
     verificationEnquiries,
@@ -664,7 +664,7 @@ export const OverviewDashboard: React.FC = () => {
                 </p>
               </div>
               <Link
-                to={isNimasa ? '/nimasa/register' : '/doctor'}
+                to={isNimasa ? '/nimasa/register' : activeRole === 'DOCTOR' ? '/doctor' : '/front-desk'}
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-navy-800 transition-colors"
               >
                 <span>View all</span>
@@ -672,6 +672,26 @@ export const OverviewDashboard: React.FC = () => {
               </Link>
             </div>
 
+            {recentExaminations.length === 0 ? (
+              <div className="p-10 text-center space-y-2.5 text-xs text-ink-muted">
+                <div className="text-sm font-medium text-ink-primary">
+                  No seafarer examinations recorded yet
+                </div>
+                <p>
+                  {isNimasa
+                    ? 'Consented seafarer examinations will appear here once registered at the clinic.'
+                    : 'Register an arriving seafarer at Reception to begin tracking STCW Reg. I/9 examinations.'}
+                </p>
+                {!isNimasa && (
+                  <Link
+                    to="/front-desk"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 text-white font-semibold"
+                  >
+                    Open Reception →
+                  </Link>
+                )}
+              </div>
+            ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
@@ -723,6 +743,7 @@ export const OverviewDashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            )}
           </section>
         </div>
 
@@ -852,7 +873,7 @@ export const OverviewDashboard: React.FC = () => {
                 </span>
               </div>
               <span className="text-[11px] text-ink-muted">
-                Valid to {PRACTICE_RECOGNITION.expiresOn}
+                Valid to {practice.expiresOn}
               </span>
             </div>
           </section>

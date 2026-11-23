@@ -1,35 +1,27 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiRequest } from '../api/client';
 import {
-  PatientRecord,
-  PatientStage,
-  RoleType,
   AuditLogEntry,
-  DepartmentMaster,
-  SystemUser,
-  DiagnosticOrder,
-  SeafarerCategory,
-  IdDocumentType,
-  VisionHearingRecord,
-  StatutoryCriteriaCheck,
-  FitnessDetermination,
+  AuthUser,
   CertificateStockItem,
   DailyEquipmentCheckState,
+  DepartmentCertificate,
+  DepartmentEquipment,
+  DepartmentMaster,
+  FitnessDetermination,
+  IdDocumentType,
+  PatientRecord,
+  PracticeSettings,
+  RoleType,
+  SeafarerCategory,
   SessionRecognitionCheck,
+  StatutoryCriteriaCheck,
+  SystemUser,
   VerificationEnquiry,
+  VisionHearingRecord,
 } from '../types';
-import { INITIAL_PATIENTS } from '../data/mockPatients';
-import { MOCK_DEPARTMENTS } from '../data/mockDepartments';
-import { MOCK_USERS, INITIAL_AUDIT_LOG } from '../data/mockUsers';
-import {
-  enrichPatientsWithRmp,
-  INITIAL_CERTIFICATE_STOCK,
-  INITIAL_DAILY_EQUIPMENT_CHECK,
-  INITIAL_SESSION_CHECK,
-  INITIAL_VERIFICATION_ENQUIRIES,
-  calculateAgeYears,
-} from '../data/mockRmpData';
 
-interface NewPatientInput {
+export interface NewPatientInput {
   fullName: string;
   dob: string;
   gender: 'Male' | 'Female';
@@ -52,1079 +44,697 @@ interface NewPatientInput {
   priorityBasis?: 'None' | 'Voyage Extension (Reg. I/9.6)' | 'NIMASA Urgent Permission (Reg. I/9.7)';
 }
 
-interface NewOrderTestItem {
+export interface NewOrderTestItem {
   category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging';
   testName: string;
   department: 'Laboratory' | 'Radiology';
   referenceRange: string;
 }
 
+export interface InitialSetupInput {
+  practiceName: string;
+  address: string;
+  certificateNo: string;
+  stateFacilityRegNo: string;
+  fullName: string;
+  email: string;
+  licenseNo?: string;
+  password: string;
+}
+
+export interface EquipmentInput {
+  name: string;
+  manufacturer?: string;
+  model: string;
+  yearOfMake: number;
+  serialNo: string;
+  calibrationCertNo?: string;
+  lastCalibrated?: string;
+  nextCalibrationDue?: string;
+  status: DepartmentEquipment['status'];
+}
+
+export interface DepartmentUpdateInput {
+  floorLocation: string;
+  description: string;
+  hodName: string;
+  hodTitle: string;
+  hodQualifications: string;
+  hodFellowship: string;
+  hodYearsExperience: number;
+  hodEmail: string;
+}
+
+export interface StaffInput {
+  name: string;
+  role: string;
+  qualification: string;
+  licenseNo: string;
+  shift: string;
+}
+
+export interface DepartmentCertificateInput {
+  type: string;
+  issuingBody: string;
+  certificateNo: string;
+  yearCertified: number;
+  expiryDate: string;
+  status: DepartmentCertificate['status'];
+}
+
+export interface RegisterUserInput {
+  fullName: string;
+  email: string;
+  password: string;
+  portalRole: RoleType;
+  roleTitle: string;
+  department: string;
+  licenseNo?: string;
+}
+
+export interface StockBatchInput {
+  prefix: string;
+  startNumber: number;
+  count: number;
+  assignedTo?: string;
+}
+
+interface BootstrapPayload {
+  currentUser: AuthUser;
+  practice: PracticeSettings;
+  patients: PatientRecord[];
+  departments: DepartmentMaster[];
+  users: SystemUser[];
+  auditLog: AuditLogEntry[];
+  sessionCheck: SessionRecognitionCheck;
+  dailyEquipmentCheck: DailyEquipmentCheckState;
+  certificateStock: CertificateStockItem[];
+  verificationEnquiries: VerificationEnquiry[];
+}
+
+const DEFAULT_PRACTICE: PracticeSettings = {
+  practiceName: 'Kingscare Hospitals Limited',
+  address: 'Plot 2181, Ibrahim Babangida Way, Wuse Zone 4, Abuja',
+  certificateNo: 'NIM-RMP-ABJ-2025-014',
+  status: 'Full',
+  recognizedFrom: '15 Jan 2025',
+  expiresOn: '14 Jan 2028',
+  renewalCheckDue: '14 Jul 2027',
+  engagementSigned: '12 Jan 2025',
+  returnFrequency: 'Monthly (within 10 working days)',
+  stateFacilityRegNo: 'FCT-PHMC-2024-0892',
+  medicalDirector: 'Medical Director (MDCN Registered)',
+};
+
+const EMPTY_SESSION_CHECK: SessionRecognitionCheck = {
+  date: '',
+  practitionerName: '',
+  mdcnNo: '',
+  onAgencyRegister: false,
+  premisesInScope: false,
+  licenceValid: false,
+};
+
+const EMPTY_DAILY_EQ: DailyEquipmentCheckState = {
+  date: '',
+  checkedBy: 'Not yet checked',
+  checkedAt: '',
+  items: [],
+};
+
 interface HospitalContextValue {
+  authLoading: boolean;
+  initialized: boolean;
+  currentUser: AuthUser | null;
+  practice: PracticeSettings;
   patients: PatientRecord[];
   departments: DepartmentMaster[];
   users: SystemUser[];
   auditLog: AuditLogEntry[];
   activeRole: RoleType;
-  setActiveRole: (role: RoleType) => void;
-  registerPatient: (input: NewPatientInput) => PatientRecord;
-  sendToDoctor: (patientId: string) => void;
-  startFirstAssessment: (patientId: string) => void;
+  sessionCheck: SessionRecognitionCheck;
+  dailyEquipmentCheck: DailyEquipmentCheckState;
+  certificateStock: CertificateStockItem[];
+  verificationEnquiries: VerificationEnquiry[];
+
+  // Auth & system
+  refreshAuthStatus: () => Promise<void>;
+  refreshBootstrap: () => Promise<void>;
+  setupInitialAdmin: (input: InitialSetupInput) => Promise<AuthUser>;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  logout: () => Promise<void>;
+  seedSampleData: () => Promise<{
+    defaultPassword: string;
+    accounts: { email: string; fullName: string; portalRole: RoleType }[];
+  }>;
+  resetDatabase: () => Promise<void>;
+
+  // Master file & user administration
+  updatePractice: (input: PracticeSettings) => Promise<void>;
+  updateDepartment: (deptId: DepartmentMaster['id'], input: DepartmentUpdateInput) => Promise<void>;
+  registerEquipment: (deptId: DepartmentMaster['id'], input: EquipmentInput) => Promise<void>;
+  updateEquipment: (equipmentId: string, input: Partial<EquipmentInput>) => Promise<void>;
+  deleteEquipment: (equipmentId: string) => Promise<void>;
+  registerDepartmentStaff: (deptId: DepartmentMaster['id'], input: StaffInput) => Promise<void>;
+  deleteDepartmentStaff: (staffId: string) => Promise<void>;
+  registerDepartmentCertificate: (
+    deptId: DepartmentMaster['id'],
+    input: DepartmentCertificateInput
+  ) => Promise<void>;
+  deleteDepartmentCertificate: (certId: string) => Promise<void>;
+  registerUser: (input: RegisterUserInput) => Promise<void>;
+  updateUserStatus: (userId: string, status: SystemUser['status']) => Promise<void>;
+  resetUserPassword: (userId: string, password: string) => Promise<void>;
+
+  // Stock control
+  receiveStockBatch: (input: StockBatchInput) => Promise<number>;
+  assignStockToRmp: (serialNo: string, assignedTo: string) => Promise<void>;
+  markBlankSpoiled: (serialNo: string, reason: string) => Promise<void>;
+
+  // Clinical & oversight workflows
+  registerPatient: (input: NewPatientInput) => Promise<PatientRecord>;
+  sendToDoctor: (patientId: string) => Promise<void>;
+  startFirstAssessment: (patientId: string) => Promise<void>;
   completeFirstAssessment: (
     patientId: string,
     shortSummary: string,
     fullClinicalNote: string
-  ) => void;
-  orderTests: (patientId: string, tests: NewOrderTestItem[]) => void;
-  admitPatient: (patientId: string, wardRoom?: string) => void;
+  ) => Promise<void>;
+  orderTests: (patientId: string, tests: NewOrderTestItem[]) => Promise<void>;
+  admitPatient: (patientId: string, wardRoom?: string) => Promise<void>;
   saveOrderDraft: (
     orderId: string,
     draftFindings: string,
     scientistRemarks?: string
-  ) => void;
+  ) => Promise<void>;
   publishOrderResult: (
     orderId: string,
     publishedResult: string,
     referenceRange: string,
     scientistRemarks: string,
     department: 'Laboratory' | 'Radiology'
-  ) => void;
-  recordSecondAssessment: (patientId: string, note: string) => void;
+  ) => Promise<void>;
+  recordSecondAssessment: (patientId: string, note: string) => Promise<void>;
   addMedication: (
     patientId: string,
     med: { name: string; dosage: string; frequency: string; duration: string }
-  ) => void;
-  dischargePatient: (patientId: string, dischargeSummary: string) => void;
-  // STCW Reg. I/9 RMP QSS state & actions
-  sessionCheck: SessionRecognitionCheck;
-  dailyEquipmentCheck: DailyEquipmentCheckState;
-  certificateStock: CertificateStockItem[];
-  verificationEnquiries: VerificationEnquiry[];
-  confirmSessionCheck: () => void;
-  toggleEquipmentCheckItem: (itemId: string) => void;
-  saveVisionHearing: (patientId: string, record: VisionHearingRecord) => void;
-  saveStatutoryCriteria: (patientId: string, criteria: StatutoryCriteriaCheck) => void;
+  ) => Promise<void>;
+  dischargePatient: (patientId: string, dischargeSummary: string) => Promise<void>;
+  confirmSessionCheck: () => Promise<void>;
+  toggleEquipmentCheckItem: (itemId: string) => Promise<void>;
+  saveVisionHearing: (patientId: string, record: VisionHearingRecord) => Promise<void>;
+  saveStatutoryCriteria: (patientId: string, criteria: StatutoryCriteriaCheck) => Promise<void>;
   recordFitnessDetermination: (
     patientId: string,
     determination: Exclude<FitnessDetermination, 'Pending'>,
     basis: string,
     limitationText?: string,
     reviewNoticeSigned?: boolean
-  ) => void;
+  ) => Promise<void>;
   issueMedicalCertificate: (
     patientId: string,
     serialNo: string,
     secondCheckerName: string,
     seafarerSigned: boolean,
     validityMonths?: number
-  ) => { ok: boolean; error?: string };
-  markBlankSpoiled: (serialNo: string, reason: string) => void;
-  verifyCertificate: (certificateNo: string, enquirer: string) => VerificationEnquiry;
-  resetDemoData: () => void;
+  ) => Promise<{ ok: boolean; error?: string }>;
+  verifyCertificate: (certificateNo: string, enquirer: string) => Promise<VerificationEnquiry>;
 }
 
 const HospitalContext = createContext<HospitalContextValue | undefined>(undefined);
 
-function formatNowTimestamp(): string {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, '0');
-  const mins = String(now.getMinutes()).padStart(2, '0');
-  return `21 Nov 2026, ${hours}:${mins}`;
-}
+export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authLoading, setAuthLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [practice, setPractice] = useState<PracticeSettings>(DEFAULT_PRACTICE);
+  const [patients, setPatients] = useState<PatientRecord[]>([]);
+  const [departments, setDepartments] = useState<DepartmentMaster[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+  const [sessionCheck, setSessionCheck] = useState<SessionRecognitionCheck>(EMPTY_SESSION_CHECK);
+  const [dailyEquipmentCheck, setDailyEquipmentCheck] =
+    useState<DailyEquipmentCheckState>(EMPTY_DAILY_EQ);
+  const [certificateStock, setCertificateStock] = useState<CertificateStockItem[]>([]);
+  const [verificationEnquiries, setVerificationEnquiries] = useState<VerificationEnquiry[]>([]);
 
-const STORAGE_KEY = 'kingscare_rmp_qss_state_v1';
+  const applyBootstrap = useCallback((data: BootstrapPayload) => {
+    setCurrentUser(data.currentUser);
+    setPractice(data.practice);
+    setPatients(data.patients);
+    setDepartments(data.departments);
+    setUsers(data.users);
+    setAuditLog(data.auditLog);
+    setSessionCheck(data.sessionCheck);
+    setDailyEquipmentCheck(data.dailyEquipmentCheck);
+    setCertificateStock(data.certificateStock);
+    setVerificationEnquiries(data.verificationEnquiries);
+  }, []);
 
-function loadPersistedState() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
+  const clearOperationalState = useCallback(() => {
+    setCurrentUser(null);
+    setPatients([]);
+    setDepartments([]);
+    setUsers([]);
+    setAuditLog([]);
+    setSessionCheck(EMPTY_SESSION_CHECK);
+    setDailyEquipmentCheck(EMPTY_DAILY_EQ);
+    setCertificateStock([]);
+    setVerificationEnquiries([]);
+  }, []);
 
-export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const persisted = React.useMemo(() => loadPersistedState(), []);
+  const refreshBootstrap = useCallback(async () => {
+    const data = await apiRequest<BootstrapPayload>('/api/bootstrap');
+    applyBootstrap(data);
+  }, [applyBootstrap]);
 
-  const [patients, setPatients] = useState<PatientRecord[]>(
-    () => persisted?.patients || enrichPatientsWithRmp(INITIAL_PATIENTS)
-  );
-  const [departments] = useState<DepartmentMaster[]>(MOCK_DEPARTMENTS);
-  const [users] = useState<SystemUser[]>(MOCK_USERS);
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(
-    () => persisted?.auditLog || INITIAL_AUDIT_LOG
-  );
-  const [activeRole, setActiveRole] = useState<RoleType>(
-    () => persisted?.activeRole || 'NIMASA'
-  );
-  const [sessionCheck, setSessionCheck] = useState<SessionRecognitionCheck>(
-    () => persisted?.sessionCheck || INITIAL_SESSION_CHECK
-  );
-  const [dailyEquipmentCheck, setDailyEquipmentCheck] = useState<DailyEquipmentCheckState>(
-    () => persisted?.dailyEquipmentCheck || INITIAL_DAILY_EQUIPMENT_CHECK
-  );
-  const [certificateStock, setCertificateStock] = useState<CertificateStockItem[]>(
-    () => persisted?.certificateStock || INITIAL_CERTIFICATE_STOCK
-  );
-  const [verificationEnquiries, setVerificationEnquiries] = useState<VerificationEnquiry[]>(
-    () => persisted?.verificationEnquiries || INITIAL_VERIFICATION_ENQUIRIES
-  );
+  const refreshAuthStatus = useCallback(async () => {
+    const status = await apiRequest<{
+      initialized: boolean;
+      userCount: number;
+      practice: PracticeSettings;
+    }>('/api/auth/status');
+    setInitialized(status.initialized);
+    setPractice(status.practice);
+
+    try {
+      const me = await apiRequest<{ user: AuthUser }>('/api/auth/me');
+      setCurrentUser(me.user);
+      await refreshBootstrap();
+    } catch {
+      clearOperationalState();
+    }
+  }, [clearOperationalState, refreshBootstrap]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          patients,
-          auditLog,
-          activeRole,
-          sessionCheck,
-          dailyEquipmentCheck,
-          certificateStock,
-          verificationEnquiries,
-        })
-      );
-    } catch {
-      // Ignore storage quota errors
+    let active = true;
+    (async () => {
+      try {
+        await refreshAuthStatus();
+      } catch {
+        if (active) clearOperationalState();
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [refreshAuthStatus, clearOperationalState]);
+
+  const setupInitialAdmin = async (input: InitialSetupInput): Promise<AuthUser> => {
+    const res = await apiRequest<{ user: AuthUser }>('/api/auth/setup', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    setInitialized(true);
+    setCurrentUser(res.user);
+    await refreshBootstrap();
+    return res.user;
+  };
+
+  const login = async (email: string, password: string): Promise<AuthUser> => {
+    const res = await apiRequest<{ user: AuthUser }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    setCurrentUser(res.user);
+    await refreshBootstrap();
+    return res.user;
+  };
+
+  const logout = async (): Promise<void> => {
+    await apiRequest('/api/auth/logout', { method: 'POST' });
+    clearOperationalState();
+    await refreshAuthStatus();
+  };
+
+  const seedSampleData = async () => {
+    const res = await apiRequest<{
+      ok: boolean;
+      defaultPassword: string;
+      accounts: { email: string; fullName: string; portalRole: RoleType }[];
+    }>('/api/system/seed', { method: 'POST' });
+    setInitialized(true);
+    if (currentUser) {
+      await logout();
+    } else {
+      await refreshAuthStatus();
     }
-  }, [
-    patients,
-    auditLog,
-    activeRole,
-    sessionCheck,
-    dailyEquipmentCheck,
-    certificateStock,
-    verificationEnquiries,
-  ]);
+    return { defaultPassword: res.defaultPassword, accounts: res.accounts };
+  };
 
-  const appendAudit = (
-    actorName: string,
-    actorRole: string,
-    action: string,
-    recordNo: string,
-    details: string
+  const resetDatabase = async () => {
+    await apiRequest('/api/system/reset', { method: 'POST' });
+    clearOperationalState();
+    await refreshAuthStatus();
+  };
+
+  // Master File & Users
+  const updatePractice = async (input: PracticeSettings) => {
+    await apiRequest('/api/practice', { method: 'PUT', body: JSON.stringify(input) });
+    await refreshBootstrap();
+  };
+
+  const updateDepartment = async (
+    deptId: DepartmentMaster['id'],
+    input: DepartmentUpdateInput
   ) => {
-    const newEntry: AuditLogEntry = {
-      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      timestamp: formatNowTimestamp(),
-      actorName,
-      actorRole,
-      action,
-      recordNo,
-      details,
-    };
-    setAuditLog((prev) => [newEntry, ...prev]);
+    await apiRequest(`/api/departments/${deptId}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
   };
 
-  const upsertTimelineStage = (
-    timeline: PatientRecord['timeline'],
-    stage: PatientStage,
-    actorName: string,
-    actorRole: string,
-    publicSummary: string
+  const registerEquipment = async (
+    deptId: DepartmentMaster['id'],
+    input: EquipmentInput
   ) => {
-    const timestamp = formatNowTimestamp();
-    const existingIndex = timeline.findIndex((t) => t.stage === stage);
-    const entry = {
-      stage,
-      reachedAt: timestamp,
-      actorName,
-      actorRole,
-      publicSummary,
-    };
-    if (existingIndex >= 0) {
-      const copy = [...timeline];
-      copy[existingIndex] = entry;
-      return copy;
-    }
-    return [...timeline, entry];
+    await apiRequest(`/api/departments/${deptId}/equipment`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
   };
 
-  const registerPatient = (input: NewPatientInput): PatientRecord => {
-    const nextNumber = 101 + patients.length;
-    const recordNo = `KC-${String(nextNumber).padStart(6, '0')}`;
-    const timestamp = formatNowTimestamp();
-    const age = calculateAgeYears(input.dob);
-    const isUnder18 = age < 18;
-    const category = input.category || 'Deck (Master / Officer / Lookout)';
-    const lookoutRequired =
-      input.lookoutRequired !== undefined
-        ? input.lookoutRequired
-        : category === 'Deck (Master / Officer / Lookout)';
-
-    const newPatient: PatientRecord = {
-      id: `p-${Date.now()}`,
-      recordNo,
-      fullName: input.fullName,
-      dob: input.dob,
-      gender: input.gender,
-      phone: input.phone,
-      nimasaMember: input.nimasaMember,
-      nimasaStaffId: input.nimasaMember
-        ? input.nimasaStaffId || `NIM-STF-${nextNumber * 17}`
-        : undefined,
-      nimasaDepartment: input.nimasaMember
-        ? input.nimasaDepartment || category
-        : undefined,
-      consentToShareWithNimasa: input.nimasaMember
-        ? input.consentToShareWithNimasa
-        : false,
-      status: 'Active',
-      currentStage: 'Registered',
-      currentLocation: 'Front Desk / Reception (RQP-601)',
-      arrivedAt: timestamp,
-      timeInHospital: '0h 05m',
-      vitals: {
-        bp: '120/78 mmHg',
-        temp: '36.8 °C',
-        pulse: '74 bpm',
-        spo2: '99%',
-        weight: '74 kg',
-      },
-      medications: [],
-      rmp: {
-        nationality: input.nationality || 'Nigerian',
-        idType: input.idType || "Seafarer's Identity Document",
-        idNumber: input.idNumber || `NG-SID-2026-${nextNumber}`,
-        idVerifiedOriginal: input.idVerifiedOriginal ?? true,
-        photoCaptured: input.photoCaptured ?? true,
-        isUnder18,
-        previousCertNo: input.previousCertNo || undefined,
-        previousColourVisionDate: input.previousColourVisionDate || undefined,
-        category,
-        lookoutRequired,
-        specialDuties: lookoutRequired
-          ? ['Fire-fighting team', 'Breathing apparatus', 'Bridge watchkeeping']
-          : ['Fire-fighting team', 'Breathing apparatus'],
-        entryExam: input.entryExam ?? false,
-        healthDeclarationSigned: input.healthDeclarationSigned ?? true,
-        priorityBasis: input.priorityBasis || 'None',
-        visionHearing: {
-          distanceUnaided: { right: '0.8', left: '0.8', both: '1.0' },
-          distanceAided: { right: '1.0', left: '1.0', both: '1.0' },
-          visualAidsRequired: false,
-          nearVisionMet: true,
-          intermediateVisionMet: true,
-          visualFieldsNormal: true,
-          nightVisionNormal: true,
-          diplopiaAbsent: true,
-          colourVisionLastDate: input.previousColourVisionDate || '21 Nov 2026',
-          colourVisionTestMethod: 'Ishihara 38-Plate (2024 Ed.) under D65 Lamp',
-          colourVisionCie: 'CIE 1',
-          colourVisionReferred: false,
-          audiometryRight: { hz500: 15, hz1000: 15, hz2000: 20, hz3000: 20 },
-          audiometryLeft: { hz500: 15, hz1000: 20, hz2000: 20, hz3000: 20 },
-          unaidedHearingSatisfactory: true,
-          speechClear: true,
-        },
-        statutoryCriteria: {
-          physicalCapabilityBasicTraining: false,
-          hearingAndSpeechAdequate: false,
-          noConditionPreventingDuties: false,
-          noConditionAggravatedBySea: false,
-          noImpairingMedication: false,
-          fitForLookout: lookoutRequired,
-        },
-        determination: 'Pending',
-      },
-      timeline: [
-        {
-          stage: 'Registered',
-          reachedAt: timestamp,
-          actorName: 'Chidinma Okafor',
-          actorRole: 'Registration Officer',
-          publicSummary: `Registered under RQP-601 (${category}${isUnder18 ? ' · Under-18 1-yr cap' : ''}); original photo ID, duties statement & NDPA 2023 consent recorded.`,
-        },
-      ],
-      orders: [],
-    };
-
-    setPatients((prev) => [newPatient, ...prev]);
-    appendAudit(
-      'Chidinma Okafor',
-      'Registration Officer',
-      'Registered Seafarer (RQP-601)',
-      recordNo,
-      `Registered ${input.fullName} (${category}; ID verified: ${input.idType || 'SID'}${isUnder18 ? '; UNDER-18 1-YEAR MAX FLAG' : ''}).`
-    );
-    return newPatient;
+  const updateEquipment = async (equipmentId: string, input: Partial<EquipmentInput>) => {
+    await apiRequest(`/api/equipment/${equipmentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
   };
 
-  const sendToDoctor = (patientId: string) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        return {
-          ...p,
-          currentStage: 'Awaiting doctor',
-          currentLocation: 'Doctor Waiting Lounge',
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Awaiting doctor',
-            'Chidinma Okafor',
-            'Front Desk Officer',
-            'Triage complete; patient queued for attending physician.'
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Chidinma Okafor',
-      'Front Desk Officer',
-      'Sent Patient to Doctor',
-      target.recordNo,
-      `Dispatched ${target.fullName} to Consultant Physician queue (Stage -> Awaiting doctor).`
-    );
+  const deleteEquipment = async (equipmentId: string) => {
+    await apiRequest(`/api/equipment/${equipmentId}`, { method: 'DELETE' });
+    await refreshBootstrap();
   };
 
-  const startFirstAssessment = (patientId: string) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        return {
-          ...p,
-          currentStage: 'In assessment',
-          currentLocation: 'Consultation Room 1',
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'In assessment',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            'Patient currently in first clinical consultation with physician.'
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Started First Assessment',
-      target.recordNo,
-      `Commenced first clinical consultation for ${target.fullName}.`
-    );
+  const registerDepartmentStaff = async (
+    deptId: DepartmentMaster['id'],
+    input: StaffInput
+  ) => {
+    await apiRequest(`/api/departments/${deptId}/staff`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
   };
 
-  const completeFirstAssessment = (
+  const deleteDepartmentStaff = async (staffId: string) => {
+    await apiRequest(`/api/department-staff/${staffId}`, { method: 'DELETE' });
+    await refreshBootstrap();
+  };
+
+  const registerDepartmentCertificate = async (
+    deptId: DepartmentMaster['id'],
+    input: DepartmentCertificateInput
+  ) => {
+    await apiRequest(`/api/departments/${deptId}/certificates`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
+  };
+
+  const deleteDepartmentCertificate = async (certId: string) => {
+    await apiRequest(`/api/department-certificates/${certId}`, { method: 'DELETE' });
+    await refreshBootstrap();
+  };
+
+  const registerUser = async (input: RegisterUserInput) => {
+    await apiRequest('/api/users', { method: 'POST', body: JSON.stringify(input) });
+    await refreshBootstrap();
+  };
+
+  const updateUserStatus = async (userId: string, status: SystemUser['status']) => {
+    await apiRequest(`/api/users/${userId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    await refreshBootstrap();
+  };
+
+  const resetUserPassword = async (userId: string, password: string) => {
+    await apiRequest(`/api/users/${userId}/password`, {
+      method: 'PATCH',
+      body: JSON.stringify({ password }),
+    });
+    await refreshBootstrap();
+  };
+
+  // Stock control
+  const receiveStockBatch = async (input: StockBatchInput) => {
+    const res = await apiRequest<{ ok: boolean; insertedCount: number }>('/api/stock/batch', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
+    return res.insertedCount;
+  };
+
+  const assignStockToRmp = async (serialNo: string, assignedTo: string) => {
+    await apiRequest(`/api/stock/${encodeURIComponent(serialNo)}/assign`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assignedTo }),
+    });
+    await refreshBootstrap();
+  };
+
+  const markBlankSpoiled = async (serialNo: string, reason: string) => {
+    await apiRequest(`/api/stock/${encodeURIComponent(serialNo)}/spoil`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    });
+    await refreshBootstrap();
+  };
+
+  // Clinical & Oversight
+  const registerPatient = async (input: NewPatientInput): Promise<PatientRecord> => {
+    const res = await apiRequest<{ patient: PatientRecord }>('/api/patients', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
+    return res.patient;
+  };
+
+  const sendToDoctor = async (patientId: string) => {
+    await apiRequest(`/api/patients/${patientId}/dispatch`, { method: 'POST' });
+    await refreshBootstrap();
+  };
+
+  const startFirstAssessment = async (patientId: string) => {
+    await apiRequest(`/api/patients/${patientId}/start-assessment`, { method: 'POST' });
+    await refreshBootstrap();
+  };
+
+  const completeFirstAssessment = async (
     patientId: string,
     shortSummary: string,
     fullClinicalNote: string
   ) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    const cleanSummary =
-      shortSummary.trim() ||
-      'First assessment complete; physician reviewing next diagnostic or treatment step.';
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        const baseTimeline =
-          p.timeline.some((t) => t.stage === 'In assessment')
-            ? p.timeline
-            : upsertTimelineStage(
-                p.timeline,
-                'In assessment',
-                'Dr. Babatunde Fashola-Cole',
-                'Consultant Physician',
-                'Initial consultation performed.'
-              );
-
-        return {
-          ...p,
-          currentStage: 'First assessment complete',
-          currentLocation: 'Consultation Room 1',
-          firstAssessmentSummary: cleanSummary,
-          firstAssessmentFullNote: fullClinicalNote,
-          timeline: upsertTimelineStage(
-            baseTimeline,
-            'First assessment complete',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            cleanSummary
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Completed First Assessment',
-      target.recordNo,
-      `Marked first assessment complete for ${target.fullName}.`
-    );
+    await apiRequest(`/api/patients/${patientId}/first-assessment`, {
+      method: 'POST',
+      body: JSON.stringify({ shortSummary, fullClinicalNote }),
+    });
+    await refreshBootstrap();
   };
 
-  const orderTests = (patientId: string, tests: NewOrderTestItem[]) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target || tests.length === 0) return;
-
-    const timestamp = formatNowTimestamp();
-    const newOrders: DiagnosticOrder[] = tests.map((t, idx) => ({
-      id: `ORD-${Date.now().toString().slice(-4)}${idx + 1}`,
-      patientId: target.id,
-      recordNo: target.recordNo,
-      patientName: target.fullName,
-      department: t.department,
-      category: t.category,
-      testName: t.testName,
-      orderedBy: 'Dr. Babatunde Fashola-Cole',
-      orderedAt: timestamp,
-      status: 'Pending',
-      referenceRange: t.referenceRange,
-    }));
-
-    const hasImaging = tests.some((t) => t.department === 'Radiology');
-    const hasLab = tests.some((t) => t.department === 'Laboratory');
-    const locationLabel =
-      hasImaging && hasLab
-        ? 'Laboratory & Radiology'
-        : hasImaging
-        ? 'Radiology / X-Ray Suite'
-        : 'Laboratory';
-
-    const testListText = tests.map((t) => t.testName).join(', ');
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        return {
-          ...p,
-          currentStage: 'Tests requested',
-          currentLocation: p.isAdmitted
-            ? `${p.wardRoom || 'Inpatient Ward B'} -> ${locationLabel}`
-            : locationLabel,
-          orders: [...newOrders, ...p.orders],
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Tests requested',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            `First assessment complete; awaiting diagnostic results (${testListText}).`
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Ordered Diagnostic Tests',
-      target.recordNo,
-      `Ordered ${tests.length} test(s) for ${target.fullName}: ${testListText}.`
-    );
+  const orderTests = async (patientId: string, tests: NewOrderTestItem[]) => {
+    await apiRequest(`/api/patients/${patientId}/orders`, {
+      method: 'POST',
+      body: JSON.stringify({ tests }),
+    });
+    await refreshBootstrap();
   };
 
-  const admitPatient = (patientId: string, wardRoom = 'Executive Ward B - Bed 07') => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        return {
-          ...p,
-          currentStage: 'Admitted',
-          isAdmitted: true,
-          wardRoom,
-          currentLocation: wardRoom,
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Admitted',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            `Patient admitted to ${wardRoom} for inpatient clinical observation and care.`
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Admitted Patient',
-      target.recordNo,
-      `Admitted ${target.fullName} to ${wardRoom} (Stage -> Admitted).`
-    );
+  const admitPatient = async (patientId: string, wardRoom?: string) => {
+    await apiRequest(`/api/patients/${patientId}/admit`, {
+      method: 'POST',
+      body: JSON.stringify({ wardRoom }),
+    });
+    await refreshBootstrap();
   };
 
-  const saveOrderDraft = (
+  const saveOrderDraft = async (
     orderId: string,
     draftFindings: string,
     scientistRemarks?: string
   ) => {
-    let targetRecordNo = '';
-    let targetTestName = '';
-    let targetDept: 'Laboratory' | 'Radiology' = 'Laboratory';
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        const hasOrder = p.orders.some((o) => o.id === orderId);
-        if (!hasOrder) return p;
-        return {
-          ...p,
-          orders: p.orders.map((o) => {
-            if (o.id !== orderId) return o;
-            targetRecordNo = p.recordNo;
-            targetTestName = o.testName;
-            targetDept = o.department;
-            return {
-              ...o,
-              status: 'Draft',
-              draftFindings,
-              scientistRemarks: scientistRemarks ?? o.scientistRemarks,
-            };
-          }),
-        };
-      })
-    );
-
-    if (targetRecordNo) {
-      const actorName =
-        targetDept === 'Laboratory'
-          ? 'MLS. Kelechi Nwachukwu'
-          : 'Dr. Musa Danbaba';
-      const actorRole =
-        targetDept === 'Laboratory'
-          ? 'Senior Lab Scientist'
-          : 'Consultant Radiologist';
-      appendAudit(
-        actorName,
-        actorRole,
-        'Saved Diagnostic Result Draft',
-        targetRecordNo,
-        `Saved draft findings for ${targetTestName}.`
-      );
-    }
+    await apiRequest(`/api/orders/${orderId}/draft`, {
+      method: 'PATCH',
+      body: JSON.stringify({ draftFindings, scientistRemarks }),
+    });
+    await refreshBootstrap();
   };
 
-  const publishOrderResult = (
+  const publishOrderResult = async (
     orderId: string,
     publishedResult: string,
     referenceRange: string,
     scientistRemarks: string,
-    department: 'Laboratory' | 'Radiology'
+    _department: 'Laboratory' | 'Radiology'
   ) => {
-    const actorName =
-      department === 'Laboratory'
-        ? 'MLS. Kelechi Nwachukwu'
-        : 'Dr. Musa Danbaba';
-    const actorRole =
-      department === 'Laboratory'
-        ? 'Senior Lab Scientist'
-        : 'Consultant Radiologist';
-    const timestamp = formatNowTimestamp();
-
-    let foundRecordNo = '';
-    let foundPatientName = '';
-    let foundTestName = '';
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        const targetOrder = p.orders.find((o) => o.id === orderId);
-        if (!targetOrder) return p;
-
-        foundRecordNo = p.recordNo;
-        foundPatientName = p.fullName;
-        foundTestName = targetOrder.testName;
-
-        const updatedOrders: DiagnosticOrder[] = p.orders.map((o) =>
-          o.id === orderId
-            ? {
-                ...o,
-                status: 'Published',
-                publishedResult,
-                referenceRange: referenceRange || o.referenceRange,
-                scientistRemarks,
-                completedBy: actorName,
-                publishedAt: timestamp,
-              }
-            : o
-        );
-
-        return {
-          ...p,
-          currentStage: 'Results ready',
-          currentLocation: p.isAdmitted
-            ? `${p.wardRoom} (Results Ready for Doctor)`
-            : 'Consultation Room 1 (Results Ready)',
-          orders: updatedOrders,
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Results ready',
-            actorName,
-            actorRole,
-            `Diagnostic result published (${targetOrder.testName}); ready for doctor's second assessment.`
-          ),
-        };
-      })
-    );
-
-    if (foundRecordNo) {
-      appendAudit(
-        actorName,
-        actorRole,
-        `Published ${department} Result`,
-        foundRecordNo,
-        `Published ${foundTestName} result for ${foundPatientName} (Stage -> Results ready).`
-      );
-    }
+    await apiRequest(`/api/orders/${orderId}/publish`, {
+      method: 'POST',
+      body: JSON.stringify({ publishedResult, referenceRange, scientistRemarks }),
+    });
+    await refreshBootstrap();
   };
 
-  const recordSecondAssessment = (patientId: string, note: string) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        return {
-          ...p,
-          currentStage: 'Second assessment',
-          currentLocation: 'Consultation Room 1',
-          secondAssessmentNote: note,
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Second assessment',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            'Doctor reviewed diagnostic results and completed second clinical assessment.'
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Completed Second Assessment',
-      target.recordNo,
-      `Recorded post-investigation second assessment for ${target.fullName}.`
-    );
+  const recordSecondAssessment = async (patientId: string, note: string) => {
+    await apiRequest(`/api/patients/${patientId}/second-assessment`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    await refreshBootstrap();
   };
 
-  const addMedication = (
+  const addMedication = async (
     patientId: string,
     med: { name: string; dosage: string; frequency: string; duration: string }
   ) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    const newMed = {
-      id: `med-${Date.now()}`,
-      ...med,
-      prescribedBy: 'Dr. Babatunde Fashola-Cole',
-      prescribedAt: formatNowTimestamp(),
-    };
-
-    setPatients((prev) =>
-      prev.map((p) =>
-        p.id === patientId
-          ? { ...p, medications: [...p.medications, newMed] }
-          : p
-      )
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Prescribed Medication',
-      target.recordNo,
-      `Prescribed ${med.name} (${med.dosage}, ${med.frequency} for ${med.duration}) to ${target.fullName}.`
-    );
-  };
-
-  const dischargePatient = (patientId: string, dischargeSummary: string) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target) return;
-
-    const cleanSummary =
-      dischargeSummary.trim() ||
-      'Patient clinically stable, counselled on medication compliance, and discharged home.';
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId) return p;
-        const withSecond = p.timeline.some((t) => t.stage === 'Second assessment')
-          ? p.timeline
-          : upsertTimelineStage(
-              p.timeline,
-              'Second assessment',
-              'Dr. Babatunde Fashola-Cole',
-              'Consultant Physician',
-              'Final pre-discharge clinical review completed.'
-            );
-
-        return {
-          ...p,
-          status: 'Inactive',
-          currentStage: 'Discharged',
-          currentLocation: 'Discharged',
-          isAdmitted: false,
-          dischargeSummary: cleanSummary,
-          timeline: upsertTimelineStage(
-            withSecond,
-            'Discharged',
-            'Dr. Babatunde Fashola-Cole',
-            'Consultant Physician',
-            cleanSummary
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Consultant Physician',
-      'Discharged Patient',
-      target.recordNo,
-      `Discharged ${target.fullName} (Status -> Inactive / Discharged).`
-    );
-  };
-
-  const confirmSessionCheck = () => {
-    const ts = formatNowTimestamp();
-    setSessionCheck((prev) => ({
-      ...prev,
-      onAgencyRegister: true,
-      premisesInScope: true,
-      licenceValid: true,
-      confirmedAt: ts,
-    }));
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Recognized Medical Practitioner',
-      'Session-Start Check (RQW-001)',
-      'RQC-301-01',
-      'Confirmed current entry on NIMASA QAR-803-01 register, Abuja premises in scope, and valid MDCN licence.'
-    );
-  };
-
-  const toggleEquipmentCheckItem = (itemId: string) => {
-    const ts = formatNowTimestamp();
-    setDailyEquipmentCheck((prev) => {
-      const updated = prev.items.map((item) =>
-        item.id === itemId ? { ...item, passed: !item.passed } : item
-      );
-      const changed = updated.find((i) => i.id === itemId);
-      if (changed) {
-        appendAudit(
-          'RN. Amina Mohammed',
-          'Clinical Support Staff',
-          changed.passed ? 'Equipment Check Passed (RQW-002)' : 'Equipment Marked OUT OF USE',
-          'RQF-402-01',
-          `${changed.label} (${changed.department}) marked ${changed.passed ? 'PASS' : 'FAIL / OUT OF USE'}.`
-        );
-      }
-      return { ...prev, checkedAt: ts, items: updated };
+    await apiRequest(`/api/patients/${patientId}/medications`, {
+      method: 'POST',
+      body: JSON.stringify(med),
     });
+    await refreshBootstrap();
   };
 
-  const saveVisionHearing = (patientId: string, record: VisionHearingRecord) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target || !target.rmp) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId || !p.rmp) return p;
-        return {
-          ...p,
-          rmp: {
-            ...p.rmp,
-            visionHearing: record,
-          },
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Recognized Medical Practitioner',
-      'Recorded Vision & Hearing (RQF-603-01)',
-      target.recordNo,
-      `Distance aided R:${record.distanceAided.right}/L:${record.distanceAided.left}, Colour: ${record.colourVisionCie}, Unaided hearing satisfactory: ${record.unaidedHearingSatisfactory ? 'Yes' : 'No'}.`
-    );
+  const dischargePatient = async (patientId: string, dischargeSummary: string) => {
+    await apiRequest(`/api/patients/${patientId}/discharge`, {
+      method: 'POST',
+      body: JSON.stringify({ dischargeSummary }),
+    });
+    await refreshBootstrap();
   };
 
-  const saveStatutoryCriteria = (patientId: string, criteria: StatutoryCriteriaCheck) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target || !target.rmp) return;
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId || !p.rmp) return p;
-        return {
-          ...p,
-          rmp: {
-            ...p.rmp,
-            statutoryCriteria: criteria,
-          },
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Recognized Medical Practitioner',
-      'Assessed A-I/9.2 Criteria (RQF-602-01)',
-      target.recordNo,
-      `Recorded statutory Section A-I/9.2 fitness criteria & lookout fitness (${criteria.fitForLookout ? 'Yes' : 'No'}).`
-    );
+  const confirmSessionCheck = async () => {
+    await apiRequest('/api/session-check', { method: 'POST' });
+    await refreshBootstrap();
   };
 
-  const recordFitnessDetermination = (
+  const toggleEquipmentCheckItem = async (itemId: string) => {
+    await apiRequest(`/api/equipment/${itemId}/daily-check`, { method: 'PATCH' });
+    await refreshBootstrap();
+  };
+
+  const saveVisionHearing = async (patientId: string, record: VisionHearingRecord) => {
+    await apiRequest(`/api/patients/${patientId}/vision-hearing`, {
+      method: 'PUT',
+      body: JSON.stringify(record),
+    });
+    await refreshBootstrap();
+  };
+
+  const saveStatutoryCriteria = async (patientId: string, criteria: StatutoryCriteriaCheck) => {
+    await apiRequest(`/api/patients/${patientId}/statutory-criteria`, {
+      method: 'PUT',
+      body: JSON.stringify(criteria),
+    });
+    await refreshBootstrap();
+  };
+
+  const recordFitnessDetermination = async (
     patientId: string,
     determination: Exclude<FitnessDetermination, 'Pending'>,
     basis: string,
     limitationText?: string,
     reviewNoticeSigned = true
   ) => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target || !target.rmp) return;
-    const ts = formatNowTimestamp();
-    const needsReviewNotice = determination === 'Not fit' || determination === 'Fit with limitation';
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId || !p.rmp) return p;
-        const nextStage: PatientStage =
-          determination === 'Not fit' ? 'Discharged' : 'Second assessment';
-        const publicOutcome =
-          determination === 'Fit'
-            ? 'Fitness determination recorded: Fit (awaiting QAF-805-01 certificate issue).'
-            : determination === 'Fit with limitation'
-            ? `Fitness determination recorded: Fit with limitation ("${limitationText || 'Specified restriction'}"). QAF-804-02 Right of Review issued.`
-            : 'Fitness determination recorded: Not fit (no certificate issued; mandatory QAF-804-02 Right of Review issued).';
-
-        return {
-          ...p,
-          status: determination === 'Not fit' ? 'Inactive' : 'Active',
-          currentStage: nextStage,
-          currentLocation:
-            determination === 'Not fit'
-              ? 'Closed — Not Fit (QAF-804-02 Issued)'
-              : 'Certification Desk (RQC-701-01 Check)',
-          rmp: {
-            ...p.rmp,
-            determination,
-            determinationBasis: basis,
-            limitationText: determination === 'Fit with limitation' ? limitationText : undefined,
-            rightOfReview: needsReviewNotice
-              ? {
-                  issuedAt: ts,
-                  seafarerSigned: reviewNoticeSigned,
-                  reviewRequested: false,
-                }
-              : undefined,
-          },
-          timeline: upsertTimelineStage(
-            p.timeline,
-            nextStage,
-            'Dr. Babatunde Fashola-Cole',
-            'Recognized Medical Practitioner',
-            publicOutcome
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Recognized Medical Practitioner',
-      `Fitness Determination: ${determination} (RQP-605)`,
-      target.recordNo,
-      `${determination}${needsReviewNotice ? ' · Mandatory QAF-804-02 Right of Review issued in writing' : ''}.`
-    );
+    await apiRequest(`/api/patients/${patientId}/determination`, {
+      method: 'POST',
+      body: JSON.stringify({
+        determination,
+        basis,
+        limitationText,
+        reviewNoticeSigned,
+      }),
+    });
+    await refreshBootstrap();
   };
 
-  const issueMedicalCertificate = (
+  const issueMedicalCertificate = async (
     patientId: string,
     serialNo: string,
     secondCheckerName: string,
     seafarerSigned: boolean,
     validityMonths?: number
-  ): { ok: boolean; error?: string } => {
-    const target = patients.find((p) => p.id === patientId);
-    if (!target || !target.rmp) return { ok: false, error: 'Record not found.' };
-
-    const pendingOrders = target.orders.filter((o) => o.status !== 'Published');
-    if (pendingOrders.length > 0) {
+  ): Promise<{ ok: boolean; error?: string }> => {
+    try {
+      await apiRequest(`/api/patients/${patientId}/issue-certificate`, {
+        method: 'POST',
+        body: JSON.stringify({
+          serialNo,
+          secondCheckerName,
+          seafarerSigned,
+          validityMonths,
+        }),
+      });
+      await refreshBootstrap();
+      return { ok: true };
+    } catch (err) {
       return {
         ok: false,
-        error: `Cannot issue certificate while ${pendingOrders.length} investigation(s) remain pending (RQP-604 §7.5).`,
+        error: err instanceof Error ? err.message : 'Failed to issue medical certificate.',
       };
     }
+  };
 
-    if (target.rmp.determination !== 'Fit' && target.rmp.determination !== 'Fit with limitation') {
-      return {
-        ok: false,
-        error: 'A certificate may only be issued for a Fit or Fit with limitation determination (RQP-701 §7.1).',
-      };
-    }
-
-    const stockItem = certificateStock.find(
-      (s) => s.serialNo === serialNo && (s.status === 'Issued to RMP' || s.status === 'In Cabinet')
-    );
-    if (!stockItem) {
-      return { ok: false, error: 'Selected certificate serial number is not available in stock.' };
-    }
-
-    const maxYears: 1 | 2 = target.rmp.isUnder18 ? 1 : 2;
-    const maxMonths = maxYears * 12;
-    const chosenMonths = Math.min(validityMonths || maxMonths, maxMonths);
-
-    const examDateObj = new Date('2026-11-21');
-    const expiryObj = new Date(examDateObj);
-    expiryObj.setMonth(expiryObj.getMonth() + chosenMonths);
-    const expiryStr = expiryObj.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+  const verifyCertificate = async (
+    certificateNo: string,
+    enquirer: string
+  ): Promise<VerificationEnquiry> => {
+    const res = await apiRequest<{ enquiry: VerificationEnquiry }>('/api/verifications', {
+      method: 'POST',
+      body: JSON.stringify({ certificateNo, enquirer }),
     });
-
-    const ts = formatNowTimestamp();
-    const cert = {
-      certificateNo: serialNo,
-      supplementNo: `${serialNo}-S`,
-      examinationDate: '21 Nov 2026',
-      issueDate: '21 Nov 2026',
-      expiryDate: expiryStr,
-      maxValidityYears: maxYears,
-      determination: target.rmp.determination,
-      limitation: target.rmp.limitationText,
-      fitForLookout: target.rmp.statutoryCriteria.fitForLookout,
-      visualAidsRequired: target.rmp.visionHearing.visualAidsRequired,
-      unaidedHearingSatisfactory: target.rmp.visionHearing.unaidedHearingSatisfactory,
-      colourVisionDate: target.rmp.visionHearing.colourVisionLastDate,
-      practitionerName: 'Dr. Babatunde Fashola-Cole',
-      practitionerMdcn: 'MDCN/R/44819',
-      secondCheckerName,
-      seafarerSigned,
-    };
-
-    setCertificateStock((prev) =>
-      prev.map((s) =>
-        s.serialNo === serialNo
-          ? {
-              ...s,
-              status: 'Used',
-              assignedTo: 'Dr. Babatunde Fashola-Cole',
-              recordNo: target.recordNo,
-              seafarerName: target.fullName,
-              updatedAt: ts,
-            }
-          : s
-      )
-    );
-
-    setPatients((prev) =>
-      prev.map((p) => {
-        if (p.id !== patientId || !p.rmp) return p;
-        return {
-          ...p,
-          status: 'Inactive',
-          currentStage: 'Discharged',
-          currentLocation: `Certificate Issued (${serialNo})`,
-          rmp: {
-            ...p.rmp,
-            issuedCertificate: cert,
-          },
-          timeline: upsertTimelineStage(
-            p.timeline,
-            'Discharged',
-            'Dr. Babatunde Fashola-Cole',
-            'Recognized Medical Practitioner',
-            `STCW Reg. I/9 Certificate ${serialNo} + Supplement ${serialNo}-S issued (${cert.determination}; valid until ${expiryStr}).`
-          ),
-        };
-      })
-    );
-
-    appendAudit(
-      'Dr. Babatunde Fashola-Cole',
-      'Recognized Medical Practitioner',
-      'Issued Medical Certificate (QAF-805-01)',
-      target.recordNo,
-      `Issued ${serialNo} + ${serialNo}-S (${cert.determination}; expiry ${expiryStr}; 2nd check by ${secondCheckerName}).`
-    );
-
-    return { ok: true };
+    await refreshBootstrap();
+    return res.enquiry;
   };
 
-  const markBlankSpoiled = (serialNo: string, reason: string) => {
-    const ts = formatNowTimestamp();
-    setCertificateStock((prev) =>
-      prev.map((s) =>
-        s.serialNo === serialNo
-          ? { ...s, status: 'Spoiled', updatedAt: ts, note: reason || 'Marked SPOILED and retained (RQP-702 §7.4).' }
-          : s
-      )
-    );
-    appendAudit(
-      'Chidinma Okafor',
-      'Certificate Stock Custodian',
-      'Marked Blank Certificate SPOILED (RQP-702)',
-      serialNo,
-      `Serial ${serialNo} marked SPOILED and retained for monthly return: ${reason}`
-    );
-  };
-
-  const verifyCertificate = (certificateNo: string, enquirer: string): VerificationEnquiry => {
-    const cleanNo = certificateNo.trim().toUpperCase();
-    const matchedPatient = patients.find(
-      (p) => p.rmp?.issuedCertificate?.certificateNo.toUpperCase() === cleanNo
-    );
-    const cert = matchedPatient?.rmp?.issuedCertificate;
-    const entry: VerificationEnquiry = {
-      id: `ver-${Date.now()}`,
-      timestamp: formatNowTimestamp(),
-      enquirer: enquirer.trim() || 'NIMASA / Port State Control Officer',
-      certificateNo: cleanNo,
-      result: cert ? 'Issued' : 'No record',
-      outcomeSummary: cert
-        ? `Genuine · ${matchedPatient?.fullName} · ${cert.determination}${cert.limitation ? ` (${cert.limitation})` : ''} · Lookout: ${cert.fitForLookout ? 'Yes' : 'No'} · Expires ${cert.expiryDate} · Supplement ${cert.supplementNo} issued (No clinical data disclosed)`
-        : 'No record of this certificate serial number issued by Kingscare. Flagged for RQP-204 §7.2 fraud check.',
-    };
-    setVerificationEnquiries((prev) => [entry, ...prev]);
-    appendAudit(
-      'Dr. Olumide Balogun',
-      'Medical Director',
-      'Certificate Verification Enquiry (RQP-204)',
-      cleanNo || 'UNKNOWN',
-      `Enquiry by ${entry.enquirer}: ${entry.result}. No clinical data disclosed (QA-P-808 §7.4).`
-    );
-    return entry;
-  };
-
-  const resetDemoData = () => {
-    setPatients(enrichPatientsWithRmp(INITIAL_PATIENTS));
-    setAuditLog(INITIAL_AUDIT_LOG);
-    setSessionCheck(INITIAL_SESSION_CHECK);
-    setDailyEquipmentCheck(INITIAL_DAILY_EQUIPMENT_CHECK);
-    setCertificateStock(INITIAL_CERTIFICATE_STOCK);
-    setVerificationEnquiries(INITIAL_VERIFICATION_ENQUIRIES);
-  };
+  const activeRole: RoleType = currentUser?.portalRole ?? 'NIMASA';
 
   return (
     <HospitalContext.Provider
       value={{
+        authLoading,
+        initialized,
+        currentUser,
+        practice,
         patients,
         departments,
         users,
         auditLog,
         activeRole,
-        setActiveRole,
+        sessionCheck,
+        dailyEquipmentCheck,
+        certificateStock,
+        verificationEnquiries,
+        refreshAuthStatus,
+        refreshBootstrap,
+        setupInitialAdmin,
+        login,
+        logout,
+        seedSampleData,
+        resetDatabase,
+        updatePractice,
+        updateDepartment,
+        registerEquipment,
+        updateEquipment,
+        deleteEquipment,
+        registerDepartmentStaff,
+        deleteDepartmentStaff,
+        registerDepartmentCertificate,
+        deleteDepartmentCertificate,
+        registerUser,
+        updateUserStatus,
+        resetUserPassword,
+        receiveStockBatch,
+        assignStockToRmp,
+        markBlankSpoiled,
         registerPatient,
         sendToDoctor,
         startFirstAssessment,
@@ -1136,19 +746,13 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({
         recordSecondAssessment,
         addMedication,
         dischargePatient,
-        sessionCheck,
-        dailyEquipmentCheck,
-        certificateStock,
-        verificationEnquiries,
         confirmSessionCheck,
         toggleEquipmentCheckItem,
         saveVisionHearing,
         saveStatutoryCriteria,
         recordFitnessDetermination,
         issueMedicalCertificate,
-        markBlankSpoiled,
         verifyCertificate,
-        resetDemoData,
       }}
     >
       {children}

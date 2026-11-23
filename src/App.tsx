@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { HospitalProvider } from './context/HospitalContext';
+import { HospitalProvider, useHospital } from './context/HospitalContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { OverviewDashboard } from './pages/OverviewDashboard';
@@ -17,6 +17,50 @@ import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminAuditLogPage } from './pages/admin/AdminAuditLogPage';
 import { AdminQssCompliancePage } from './pages/admin/AdminQssCompliancePage';
 import { AdminGovernancePage } from './pages/admin/AdminGovernancePage';
+import { RoleType } from './types';
+
+function homePathForRole(role: RoleType): string {
+  switch (role) {
+    case 'NIMASA':
+      return '/nimasa';
+    case 'FRONT_DESK':
+      return '/front-desk';
+    case 'DOCTOR':
+      return '/doctor';
+    case 'LAB':
+      return '/lab';
+    case 'RADIOLOGY':
+      return '/radiology';
+    case 'ADMIN':
+    default:
+      return '/admin';
+  }
+}
+
+const ProtectedRoute: React.FC<{
+  allowedRoles: RoleType[];
+  children: React.ReactElement;
+}> = ({ allowedRoles, children }) => {
+  const { authLoading, currentUser } = useHospital();
+
+  if (authLoading) {
+    return (
+      <div className="py-20 text-center text-sm text-ink-muted">
+        Verifying session...
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!allowedRoles.includes(currentUser.portalRole)) {
+    return <Navigate to={homePathForRole(currentUser.portalRole)} replace />;
+  }
+
+  return children;
+};
 
 export const App: React.FC = () => {
   return (
@@ -26,44 +70,145 @@ export const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/overview" element={<OverviewDashboard />} />
+
+            <Route
+              path="/overview"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY']}>
+                  <OverviewDashboard />
+                </ProtectedRoute>
+              }
+            />
 
             {/* NIMASA Sponsor Portal (Read-Only) */}
-            <Route path="/nimasa" element={<OverviewDashboard />} />
-            <Route path="/nimasa/register" element={<NimasaDashboard />} />
+            <Route
+              path="/nimasa"
+              element={
+                <ProtectedRoute allowedRoles={['NIMASA', 'ADMIN']}>
+                  <OverviewDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/nimasa/register"
+              element={
+                <ProtectedRoute allowedRoles={['NIMASA', 'ADMIN']}>
+                  <NimasaDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/nimasa/patients/:recordNo"
-              element={<NimasaPatientStage />}
+              element={
+                <ProtectedRoute allowedRoles={['NIMASA', 'ADMIN']}>
+                  <NimasaPatientStage />
+                </ProtectedRoute>
+              }
             />
-            <Route path="/nimasa/reports" element={<NimasaReports />} />
-            <Route path="/nimasa/compliance" element={<NimasaCompliancePage />} />
+            <Route
+              path="/nimasa/reports"
+              element={
+                <ProtectedRoute allowedRoles={['NIMASA', 'ADMIN']}>
+                  <NimasaReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/nimasa/compliance"
+              element={
+                <ProtectedRoute allowedRoles={['NIMASA', 'ADMIN']}>
+                  <NimasaCompliancePage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Hospital: Front Desk */}
-            <Route path="/front-desk" element={<FrontDeskPage />} />
+            <Route
+              path="/front-desk"
+              element={
+                <ProtectedRoute allowedRoles={['FRONT_DESK', 'ADMIN']}>
+                  <FrontDeskPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Hospital: Doctor */}
-            <Route path="/doctor" element={<DoctorDashboard />} />
+            <Route
+              path="/doctor"
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+                  <DoctorDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/doctor/patients/:recordNo"
-              element={<DoctorPatientPage />}
+              element={
+                <ProtectedRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+                  <DoctorPatientPage />
+                </ProtectedRoute>
+              }
             />
 
             {/* Hospital: Laboratory and Radiology */}
             <Route
               path="/lab"
-              element={<DiagnosticsPage department="Laboratory" />}
+              element={
+                <ProtectedRoute allowedRoles={['LAB', 'ADMIN']}>
+                  <DiagnosticsPage department="Laboratory" />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/radiology"
-              element={<DiagnosticsPage department="Radiology" />}
+              element={
+                <ProtectedRoute allowedRoles={['RADIOLOGY', 'ADMIN']}>
+                  <DiagnosticsPage department="Radiology" />
+                </ProtectedRoute>
+              }
             />
 
             {/* Hospital: Admin */}
-            <Route path="/admin" element={<AdminMasterFile />} />
-            <Route path="/admin/qss" element={<AdminQssCompliancePage />} />
-            <Route path="/admin/governance" element={<AdminGovernancePage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/admin/audit" element={<AdminAuditLogPage />} />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminMasterFile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/qss"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminQssCompliancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/governance"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminGovernancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminUsersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminAuditLogPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/login" replace />} />

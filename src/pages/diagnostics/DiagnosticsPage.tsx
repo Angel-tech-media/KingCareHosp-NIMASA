@@ -10,9 +10,12 @@ import {
   Clock,
   FileCheck,
   Stethoscope,
+  Cpu,
+  Plus,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
-import { DiagnosticOrder } from '../../types';
+import { DiagnosticOrder, DepartmentEquipment } from '../../types';
+import { SlideOver } from '../../components/ui';
 
 interface DiagnosticsPageProps {
   department: 'Laboratory' | 'Radiology';
@@ -21,7 +24,20 @@ interface DiagnosticsPageProps {
 export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({
   department,
 }) => {
-  const { patients, saveOrderDraft, publishOrderResult } = useHospital();
+  const { patients, departments, saveOrderDraft, publishOrderResult, registerEquipment, updateEquipment } =
+    useHospital();
+  const [eqOpen, setEqOpen] = useState(false);
+  const [eqName, setEqName] = useState('');
+  const [eqMfg, setEqMfg] = useState('');
+  const [eqModel, setEqModel] = useState('');
+  const [eqSerial, setEqSerial] = useState('');
+  const [eqYear, setEqYear] = useState(new Date().getFullYear());
+  const [eqDue, setEqDue] = useState('');
+  const [eqSaving, setEqSaving] = useState(false);
+  const [eqError, setEqError] = useState<string | null>(null);
+
+  const deptId = department === 'Laboratory' ? 'lab' : 'radiology';
+  const myDept = departments.find((d) => d.id === deptId);
 
   // Flatten all orders for this department
   const departmentOrders = useMemo(() => {
@@ -138,13 +154,24 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({
           </p>
         </div>
 
-        {/* Role Privacy Notice */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700">
-          <Lock className="w-4 h-4 text-slate-500 shrink-0" />
-          <span>
-            <strong>Clinical Privacy Active:</strong> Doctor&apos;s consultation
-            notes are hidden from {department} staff.
-          </span>
+        {/* Department Equipment + Privacy Notice */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => {
+              setEqError(null);
+              setEqOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card"
+          >
+            <Cpu className="w-4 h-4 text-primary-600" aria-hidden="true" />
+            <span>Equipment ({myDept?.equipment.length || 0})</span>
+          </button>
+
+          <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/80 border border-surface-border text-xs text-ink-secondary">
+            <Lock className="w-4 h-4 text-ink-muted shrink-0" />
+            <span>Clinical notes restricted</span>
+          </div>
         </div>
       </div>
 
@@ -414,6 +441,151 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Department Equipment Registration & Status SlideOver */}
+      <SlideOver
+        isOpen={eqOpen}
+        onClose={() => setEqOpen(false)}
+        title={`${department} Equipment Register`}
+        subtitle="Register new instruments with model number and calibration dates, or toggle readiness"
+      >
+        <div className="space-y-6">
+          <div className="space-y-2.5">
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              Registered Units ({myDept?.equipment.length || 0})
+            </div>
+            {!myDept || myDept.equipment.length === 0 ? (
+              <div className="p-4 rounded-xl bg-surface-canvas text-xs text-ink-muted">
+                No {department} equipment registered yet. Add one below.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {myDept.equipment.map((eq) => (
+                  <div
+                    key={eq.id}
+                    className="p-3.5 rounded-xl bg-surface-canvas/80 border border-surface-border flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold text-ink-primary">{eq.name}</div>
+                      <div className="font-mono text-[11px] text-ink-muted mt-0.5">
+                        Model: {eq.model} · SN: {eq.serialNo}
+                      </div>
+                    </div>
+                    <select
+                      aria-label={`Status for ${eq.name}`}
+                      value={eq.status}
+                      onChange={(e) =>
+                        updateEquipment(eq.id, {
+                          status: e.target.value as DepartmentEquipment['status'],
+                        })
+                      }
+                      className="rounded-lg border border-surface-border-strong bg-white px-2 py-1 text-xs"
+                    >
+                      <option value="Operational">Operational</option>
+                      <option value="Calibration Due">Calibration Due</option>
+                      <option value="Maintenance">Maintenance</option>
+                      <option value="Out of Use">Out of Use</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setEqSaving(true);
+              setEqError(null);
+              try {
+                await registerEquipment(deptId, {
+                  name: eqName,
+                  manufacturer: eqMfg,
+                  model: eqModel,
+                  yearOfMake: eqYear,
+                  serialNo: eqSerial,
+                  nextCalibrationDue: eqDue,
+                  status: 'Operational',
+                });
+                setEqName('');
+                setEqMfg('');
+                setEqModel('');
+                setEqSerial('');
+                setEqDue('');
+              } catch (err) {
+                setEqError(err instanceof Error ? err.message : 'Failed to register unit.');
+              } finally {
+                setEqSaving(false);
+              }
+            }}
+            className="pt-5 border-t border-surface-border space-y-3.5"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              + Register New {department} Instrument
+            </div>
+            {eqError && (
+              <div className="p-2.5 rounded-xl bg-crimson-50 text-xs text-crimson-700">{eqError}</div>
+            )}
+            <input
+              type="text"
+              required
+              placeholder="Equipment Name (e.g. Automated Haematology Analyzer)"
+              value={eqName}
+              onChange={(e) => setEqName(e.target.value)}
+              className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs"
+            />
+            <div className="grid grid-cols-2 gap-2.5">
+              <input
+                type="text"
+                placeholder="Manufacturer (e.g. Sysmex)"
+                value={eqMfg}
+                onChange={(e) => setEqMfg(e.target.value)}
+                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs"
+              />
+              <input
+                type="text"
+                required
+                placeholder="Model No. (e.g. XN-550) *"
+                value={eqModel}
+                onChange={(e) => setEqModel(e.target.value)}
+                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs font-mono"
+              />
+              <input
+                type="text"
+                required
+                placeholder="Serial No. *"
+                value={eqSerial}
+                onChange={(e) => setEqSerial(e.target.value)}
+                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs font-mono"
+              />
+              <input
+                type="number"
+                required
+                min={1980}
+                max={2035}
+                value={eqYear}
+                onChange={(e) => setEqYear(Number(e.target.value))}
+                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs font-mono"
+              />
+            </div>
+            <input
+              type="text"
+              placeholder="Next Calibration Due (e.g. 15 Nov 2027)"
+              value={eqDue}
+              onChange={(e) => setEqDue(e.target.value)}
+              className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs"
+            />
+            <button
+              type="submit"
+              disabled={eqSaving}
+              className="w-full inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 disabled:opacity-60 text-white text-xs font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>{eqSaving ? 'Registering...' : 'Save Equipment'}</span>
+            </button>
+          </form>
+        </div>
+      </SlideOver>
     </div>
   );
 };

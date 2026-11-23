@@ -12,7 +12,6 @@ import {
   Users,
   ClipboardList,
   ChevronDown,
-  Check,
   Menu,
   X,
   LayoutDashboard,
@@ -24,75 +23,6 @@ import {
 import { useHospital } from '../../context/HospitalContext';
 import { RoleType } from '../../types';
 import { SlideOver } from '../ui';
-
-type RoleKey = RoleType | 'LOGIN';
-
-interface WorkspaceOption {
-  role: RoleType;
-  label: string;
-  group: 'NIMASA Oversight' | 'Kingscare Practice';
-  path: string;
-  actor: string;
-  actorTitle: string;
-  initials: string;
-}
-
-const WORKSPACES: WorkspaceOption[] = [
-  {
-    role: 'NIMASA',
-    label: 'NIMASA Agency Portal',
-    group: 'NIMASA Oversight',
-    path: '/nimasa',
-    actor: 'Mrs. Boma Dokubo-Peterside',
-    actorTitle: 'NIMASA Medical Liaison',
-    initials: 'BD',
-  },
-  {
-    role: 'FRONT_DESK',
-    label: 'Reception & Identity Gate',
-    group: 'Kingscare Practice',
-    path: '/front-desk',
-    actor: 'Chidinma Okafor',
-    actorTitle: 'Registration Officer',
-    initials: 'CO',
-  },
-  {
-    role: 'DOCTOR',
-    label: 'RMP Examination Desk',
-    group: 'Kingscare Practice',
-    path: '/doctor',
-    actor: 'Dr. Babatunde Fashola-Cole',
-    actorTitle: 'Recognized Medical Practitioner',
-    initials: 'BF',
-  },
-  {
-    role: 'LAB',
-    label: 'Clinical Laboratory',
-    group: 'Kingscare Practice',
-    path: '/lab',
-    actor: 'MLS. Kelechi Nwachukwu',
-    actorTitle: 'Medical Laboratory Scientist',
-    initials: 'KN',
-  },
-  {
-    role: 'RADIOLOGY',
-    label: 'Radiology & Imaging',
-    group: 'Kingscare Practice',
-    path: '/radiology',
-    actor: 'Dr. Musa Danbaba',
-    actorTitle: 'Consultant Radiologist',
-    initials: 'MD',
-  },
-  {
-    role: 'ADMIN',
-    label: 'Medical Director & QSS',
-    group: 'Kingscare Practice',
-    path: '/admin',
-    actor: 'Dr. Olumide Balogun',
-    actorTitle: 'Medical Director (RMP)',
-    initials: 'OB',
-  },
-];
 
 interface NavItem {
   to: string;
@@ -107,21 +37,39 @@ interface NavSection {
   items: NavItem[];
 }
 
-const inferRoleFromPath = (path: string, fallback: RoleType): RoleKey => {
-  if (path.startsWith('/login')) return 'LOGIN';
-  if (path.startsWith('/nimasa')) return 'NIMASA';
-  if (path.startsWith('/front-desk')) return 'FRONT_DESK';
-  if (path.startsWith('/doctor')) return 'DOCTOR';
-  if (path.startsWith('/lab')) return 'LAB';
-  if (path.startsWith('/radiology')) return 'RADIOLOGY';
-  if (path.startsWith('/admin')) return 'ADMIN';
-  return fallback;
-};
+function getInitials(name: string): string {
+  const parts = name
+    .replace(/^(Dr\.|Mr\.|Mrs\.|Ms\.|MLS\.)\s+/i, '')
+    .trim()
+    .split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+function homePathForRole(role: RoleType): string {
+  switch (role) {
+    case 'NIMASA':
+      return '/nimasa';
+    case 'FRONT_DESK':
+      return '/front-desk';
+    case 'DOCTOR':
+      return '/doctor';
+    case 'LAB':
+      return '/lab';
+    case 'RADIOLOGY':
+      return '/radiology';
+    case 'ADMIN':
+    default:
+      return '/admin';
+  }
+}
 
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeRole, setActiveRole, auditLog, patients } = useHospital();
+  const { currentUser, practice, auditLog, patients, logout } = useHospital();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -133,11 +81,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const searchBoxRef = useRef<HTMLDivElement>(null);
 
   const currentPath = location.pathname;
-  const currentRoleKey = inferRoleFromPath(currentPath, activeRole);
-  const isLogin = currentRoleKey === 'LOGIN';
-  const currentWorkspace =
-    WORKSPACES.find((w) => w.role === (currentRoleKey === 'LOGIN' ? 'NIMASA' : currentRoleKey)) ||
-    WORKSPACES[0];
+  const isLoginLayout = currentPath.startsWith('/login') || !currentUser;
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -192,14 +136,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     [patients]
   );
 
-  const handleWorkspaceSelect = (ws: WorkspaceOption) => {
-    setActiveRole(ws.role);
+  const handleSignOut = async () => {
     setAccountMenuOpen(false);
-    navigate(ws.path);
+    await logout();
+    navigate('/login', { replace: true });
   };
 
+  const role = currentUser?.portalRole;
+
   const sections: NavSection[] = (() => {
-    if (currentRoleKey === 'NIMASA') {
+    if (role === 'NIMASA') {
       return [
         {
           title: 'Oversight',
@@ -232,7 +178,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         },
       ];
     }
-    if (currentRoleKey === 'ADMIN') {
+
+    if (role === 'ADMIN') {
       return [
         {
           title: 'Quality System',
@@ -256,21 +203,16 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               isActive: (p) => p.startsWith('/admin/qss'),
             },
             {
-              to: '/admin/governance',
-              label: 'Audit & CAPA',
-              icon: ShieldAlert,
-              isActive: (p) => p.startsWith('/admin/governance'),
-            },
-          ],
-        },
-        {
-          title: 'Access & Records',
-          items: [
-            {
               to: '/admin/users',
               label: 'Users & Roles',
               icon: Users,
               isActive: (p) => p.startsWith('/admin/users'),
+            },
+            {
+              to: '/admin/governance',
+              label: 'Audit & CAPA',
+              icon: ShieldAlert,
+              isActive: (p) => p.startsWith('/admin/governance'),
             },
             {
               to: '/admin/audit',
@@ -281,49 +223,93 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             },
           ],
         },
+        {
+          title: 'Clinic Desks',
+          items: [
+            {
+              to: '/front-desk',
+              label: 'Reception',
+              icon: UserPlus,
+              isActive: (p) => p.startsWith('/front-desk'),
+            },
+            {
+              to: '/doctor',
+              label: 'RMP Examinations',
+              icon: Stethoscope,
+              isActive: (p) => p.startsWith('/doctor'),
+            },
+            {
+              to: '/lab',
+              label: 'Laboratory',
+              icon: FlaskConical,
+              isActive: (p) => p.startsWith('/lab'),
+            },
+            {
+              to: '/radiology',
+              label: 'Radiology',
+              icon: ScanLine,
+              isActive: (p) => p.startsWith('/radiology'),
+            },
+            {
+              to: '/nimasa/compliance',
+              label: 'Verify & Returns',
+              icon: FileCheck2,
+              isActive: (p) => p.startsWith('/nimasa/compliance'),
+            },
+          ],
+        },
       ];
     }
+
+    if (role === 'FRONT_DESK') {
+      return [
+        {
+          title: 'Front Desk',
+          items: [
+            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+            { to: '/front-desk', label: 'Reception', icon: UserPlus, isActive: (p) => p.startsWith('/front-desk') },
+          ],
+        },
+      ];
+    }
+
+    if (role === 'DOCTOR') {
+      return [
+        {
+          title: 'RMP Desk',
+          items: [
+            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+            { to: '/doctor', label: 'RMP Examinations', icon: Stethoscope, isActive: (p) => p.startsWith('/doctor') },
+          ],
+        },
+      ];
+    }
+
+    if (role === 'LAB') {
+      return [
+        {
+          title: 'Diagnostics',
+          items: [
+            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+            { to: '/lab', label: 'Laboratory', icon: FlaskConical, isActive: (p) => p.startsWith('/lab') },
+          ],
+        },
+      ];
+    }
+
     return [
       {
-        title: 'Clinic Operations',
+        title: 'Diagnostics',
         items: [
-          {
-            to: '/overview',
-            label: 'Overview',
-            icon: LayoutDashboard,
-            isActive: (p) => p === '/overview',
-          },
-          {
-            to: '/front-desk',
-            label: 'Reception',
-            icon: UserPlus,
-            isActive: (p) => p.startsWith('/front-desk'),
-          },
-          {
-            to: '/doctor',
-            label: 'RMP Examinations',
-            icon: Stethoscope,
-            isActive: (p) => p.startsWith('/doctor'),
-          },
-          {
-            to: '/lab',
-            label: 'Laboratory',
-            icon: FlaskConical,
-            isActive: (p) => p.startsWith('/lab'),
-          },
-          {
-            to: '/radiology',
-            label: 'Radiology',
-            icon: ScanLine,
-            isActive: (p) => p.startsWith('/radiology'),
-          },
+          { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+          { to: '/radiology', label: 'Radiology', icon: ScanLine, isActive: (p) => p.startsWith('/radiology') },
         ],
       },
     ];
   })();
 
-  /* -------------------- Login layout (full-bleed) -------------------- */
-  if (isLogin) {
+  /* -------------------- Full-bleed Login / Setup Layout -------------------- */
+  if (isLoginLayout) {
     return (
       <div className="min-h-screen flex flex-col bg-surface-canvas text-ink-primary">
         <a
@@ -339,12 +325,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
+  const userHome = homePathForRole(currentUser.portalRole);
+
   /* -------------------- WellNest × Kingscare Light Sidebar -------------------- */
   const sidebarContent = (
     <div className="h-full flex flex-col bg-white/90 backdrop-blur-md text-ink-primary select-none">
       {/* Brand Header */}
       <div className="h-16 px-5 flex items-center gap-3 border-b border-surface-border/70">
-        <Link to={currentWorkspace.path} className="flex items-center gap-3 min-w-0">
+        <Link to={userHome} className="flex items-center gap-3 min-w-0">
           <img
             src="/kingscare-logo.png"
             alt="Kingscare Hospitals"
@@ -420,7 +408,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <span>Practice Active</span>
           </div>
           <div className="text-[11px] font-mono text-ink-muted mt-0.5">
-            NIM-RMP-ABJ-2025-014
+            {practice.certificateNo}
           </div>
         </div>
       </div>
@@ -509,11 +497,17 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                           onClick={() => {
                             setSearchFocused(false);
                             setSearchQuery('');
-                            navigate(
-                              currentRoleKey === 'NIMASA'
-                                ? `/nimasa/patients/${p.recordNo}`
-                                : `/doctor/patients/${p.recordNo}`
-                            );
+                            if (role === 'NIMASA') {
+                              navigate(`/nimasa/patients/${p.recordNo}`);
+                            } else if (role === 'DOCTOR' || role === 'ADMIN') {
+                              navigate(`/doctor/patients/${p.recordNo}`);
+                            } else if (role === 'FRONT_DESK') {
+                              navigate('/front-desk');
+                            } else if (role === 'LAB') {
+                              navigate('/lab');
+                            } else {
+                              navigate('/radiology');
+                            }
                           }}
                           className="w-full px-4 py-2.5 text-left hover:bg-primary-50/50 transition-colors flex items-center justify-between gap-3"
                         >
@@ -557,7 +551,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 )}
               </button>
 
-              {/* Top-Right Profile & Workspace Switcher */}
+              {/* Authenticated User Profile Chip */}
               <div ref={accountMenuRef} className="relative">
                 <button
                   type="button"
@@ -570,14 +564,14 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     aria-hidden="true"
                     className="w-7 h-7 rounded-full bg-navy-800 text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
                   >
-                    {currentWorkspace.initials}
+                    {getInitials(currentUser.fullName)}
                   </span>
                   <div className="hidden sm:block leading-tight">
-                    <div className="text-xs font-semibold text-ink-primary max-w-[150px] truncate">
-                      {currentWorkspace.actor}
+                    <div className="text-xs font-semibold text-ink-primary max-w-[160px] truncate">
+                      {currentUser.fullName}
                     </div>
-                    <div className="text-[10px] text-ink-muted max-w-[150px] truncate">
-                      {currentWorkspace.actorTitle}
+                    <div className="text-[10px] text-ink-muted max-w-[160px] truncate">
+                      {currentUser.roleTitle}
                     </div>
                   </div>
                   <ChevronDown
@@ -591,46 +585,35 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                 {accountMenuOpen && (
                   <div
                     role="menu"
-                    aria-label="Switch active workspace"
-                    className="absolute top-full right-0 mt-2 w-72 rounded-2xl bg-white/95 backdrop-blur-xl text-ink-primary border border-surface-border shadow-xl py-2 z-50"
+                    aria-label="Account profile and sign out"
+                    className="absolute top-full right-0 mt-2 w-72 rounded-2xl bg-white/95 backdrop-blur-xl text-ink-primary border border-surface-border shadow-xl p-2 z-50"
                   >
-                    {(['NIMASA Oversight', 'Kingscare Practice'] as const).map((group) => (
-                      <div key={group} className="py-1">
-                        <div className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                          {group}
-                        </div>
-                        {WORKSPACES.filter((w) => w.group === group).map((ws) => {
-                          const selected = ws.role === currentWorkspace.role;
-                          return (
-                            <button
-                              key={ws.role}
-                              type="button"
-                              role="menuitemradio"
-                              aria-checked={selected}
-                              onClick={() => handleWorkspaceSelect(ws)}
-                              className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-xs transition-colors ${
-                                selected
-                                  ? 'bg-primary-50/70 font-semibold text-navy-800'
-                                  : 'text-ink-secondary hover:bg-surface-canvas'
-                              }`}
-                            >
-                              <span className="truncate">{ws.label}</span>
-                              {selected && (
-                                <Check className="w-3.5 h-3.5 text-primary-600 shrink-0" aria-hidden="true" />
-                              )}
-                            </button>
-                          );
-                        })}
+                    <div className="px-3 py-2.5 space-y-1 border-b border-surface-border/80">
+                      <div className="text-xs font-semibold text-ink-primary truncate">
+                        {currentUser.fullName}
                       </div>
-                    ))}
-                    <div className="border-t border-surface-border mt-1 pt-1 px-2">
-                      <Link
-                        to="/login"
-                        className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-crimson-600 hover:bg-crimson-50 transition-colors"
+                      <div className="text-[11px] font-mono text-ink-muted truncate">
+                        {currentUser.email}
+                      </div>
+                      <div className="text-[11px] text-ink-secondary pt-0.5">
+                        {currentUser.department}
+                      </div>
+                      {currentUser.licenseNo && (
+                        <div className="text-[11px] font-mono text-primary-700">
+                          Licence: {currentUser.licenseNo}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-1.5">
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-crimson-600 hover:bg-crimson-50 transition-colors"
                       >
                         <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Sign out</span>
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -649,7 +632,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
         <footer className="border-t border-surface-border/70 bg-white/60 backdrop-blur-sm">
           <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 text-[11px] text-ink-muted text-center sm:text-left">
-            Kingscare Hospitals Limited · Plot 2181, Ibrahim Babangida Way, Wuse Zone 4, Abuja · STCW Reg. I/9 Recognized Practice
+            {practice.practiceName} · {practice.address} · STCW Reg. I/9 Recognized Practice
           </div>
         </footer>
       </div>
@@ -659,29 +642,35 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         isOpen={activityOpen}
         onClose={() => setActivityOpen(false)}
         title="Recent Clinic Activity"
-        subtitle="Latest 12 live updates logged across Reception, RMP Assessment, and NIMASA Verification"
+        subtitle="Latest live updates stored in the Kingscare audit database"
       >
         <div className="space-y-3">
-          {auditLog.slice(0, 12).map((entry) => (
-            <div
-              key={entry.id}
-              className="p-3.5 rounded-xl bg-surface-canvas/80 border border-surface-border/80 space-y-1"
-            >
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <span className="font-semibold text-ink-primary">{entry.action}</span>
-                <span className="font-mono text-[11px] text-ink-muted shrink-0">
-                  {entry.timestamp}
-                </span>
-              </div>
-              <p className="text-xs text-ink-secondary leading-relaxed">{entry.details}</p>
-              <div className="flex items-center justify-between text-[11px] text-ink-muted pt-1">
-                <span>
-                  {entry.actorName} ({entry.actorRole})
-                </span>
-                <span className="font-mono">{entry.recordNo}</span>
-              </div>
+          {auditLog.length === 0 ? (
+            <div className="p-6 rounded-xl bg-surface-canvas text-xs text-ink-muted text-center">
+              No activity logged yet.
             </div>
-          ))}
+          ) : (
+            auditLog.slice(0, 12).map((entry) => (
+              <div
+                key={entry.id}
+                className="p-3.5 rounded-xl bg-surface-canvas/80 border border-surface-border/80 space-y-1"
+              >
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-ink-primary">{entry.action}</span>
+                  <span className="font-mono text-[11px] text-ink-muted shrink-0">
+                    {entry.timestamp}
+                  </span>
+                </div>
+                <p className="text-xs text-ink-secondary leading-relaxed">{entry.details}</p>
+                <div className="flex items-center justify-between text-[11px] text-ink-muted pt-1">
+                  <span>
+                    {entry.actorName} ({entry.actorRole})
+                  </span>
+                  <span className="font-mono">{entry.recordNo}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </SlideOver>
     </div>

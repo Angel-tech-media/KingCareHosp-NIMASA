@@ -37,6 +37,8 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
   const { registerPatient } = useHospital();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Step 1: Identity & Age
   const [fullName, setFullName] = useState('');
@@ -93,36 +95,44 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
     onClose();
   };
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    const created = registerPatient({
-      fullName: fullName.trim(),
-      dob,
-      gender,
-      nationality,
-      phone,
-      nimasaMember,
-      nimasaStaffId: nimasaMember ? nimasaStaffId : undefined,
-      nimasaDepartment: category,
-      consentToShareWithNimasa: nimasaMember ? consentToShare : false,
-      idType,
-      idNumber,
-      idVerifiedOriginal,
-      photoCaptured,
-      category,
-      lookoutRequired,
-      previousCertNo: previousCertNo.trim() || undefined,
-      priorityBasis,
-      healthDeclarationSigned,
-    });
+  const handleSubmit = async () => {
+    if (!canSubmit || saving) return;
+    setSaving(true);
+    setSubmitError(null);
+    try {
+      const created = await registerPatient({
+        fullName: fullName.trim(),
+        dob,
+        gender,
+        nationality,
+        phone,
+        nimasaMember,
+        nimasaStaffId: nimasaMember ? nimasaStaffId : undefined,
+        nimasaDepartment: category,
+        consentToShareWithNimasa: nimasaMember ? consentToShare : false,
+        idType,
+        idNumber,
+        idVerifiedOriginal,
+        photoCaptured,
+        category,
+        lookoutRequired,
+        previousCertNo: previousCertNo.trim() || undefined,
+        priorityBasis,
+        healthDeclarationSigned,
+      });
 
-    onRegistered({
-      recordNo: created.recordNo,
-      name: created.fullName,
-      isUnder18,
-    });
-    resetForm();
-    onClose();
+      onRegistered({
+        recordNo: created.recordNo,
+        name: created.fullName,
+        isUnder18,
+      });
+      resetForm();
+      onClose();
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Failed to register seafarer.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const stepsMeta = [
@@ -172,17 +182,25 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
           ) : (
             <button
               type="button"
-              disabled={!canSubmit}
+              disabled={!canSubmit || saving}
               onClick={handleSubmit}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded bg-navy-900 hover:bg-navy-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
             >
               <Check className="w-4 h-4" aria-hidden="true" />
-              <span>Register Seafarer</span>
+              <span>{saving ? 'Saving...' : 'Register Seafarer'}</span>
             </button>
           )}
         </>
       }
     >
+      {submitError && (
+        <div
+          role="alert"
+          className="mb-4 p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-xs text-crimson-700"
+        >
+          {submitError}
+        </div>
+      )}
       {/* Crisp 3-Step Indicator */}
       <nav aria-label="Registration steps" className="mb-6">
         <ol className="grid grid-cols-3 border border-surface-border rounded overflow-hidden divide-x divide-surface-border text-xs">
