@@ -8,6 +8,9 @@ import {
   BellRing,
   BedDouble,
   ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  FileBadge,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { StageChip, StatusChip } from '../../components/ui/StageChip';
@@ -16,7 +19,18 @@ type DoctorQueueTab = 'AWAITING' | 'IN_ASSESSMENT' | 'RESULTS_READY' | 'ALL_ACTI
 
 export const DoctorDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { patients, startFirstAssessment } = useHospital();
+  const {
+    patients,
+    startFirstAssessment,
+    sessionCheck,
+    dailyEquipmentCheck,
+    certificateStock,
+    confirmSessionCheck,
+  } = useHospital();
+
+  const eqPassedCount = dailyEquipmentCheck.items.filter((i) => i.passed).length;
+  const eqTotalCount = dailyEquipmentCheck.items.length;
+  const assignedBlanksCount = certificateStock.filter((s) => s.status === 'Issued to RMP').length;
 
   const [activeTab, setActiveTab] = useState<DoctorQueueTab>('AWAITING');
 
@@ -87,12 +101,68 @@ export const DoctorDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab('RESULTS_READY')}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-50 border border-primary-200 text-primary-800 text-xs font-semibold"
             >
-              <BellRing className="w-4 h-4 text-blue-600 animate-bounce" />
+              <BellRing className="w-4 h-4 text-primary-600" aria-hidden="true" />
               <span>{resultsReadyList.length} Results Ready for Review</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Session-Start Recognition Check (RQW-001) & Daily Equipment Check (RQW-002) Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="bg-surface-card rounded-lg border border-surface-border p-3.5 shadow-card flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <div className="font-bold text-ink-primary truncate">
+                RQW-001 · NIMASA Register Verified
+              </div>
+              <div className="text-ink-muted truncate">
+                {sessionCheck.mdcnNo} · Checked {sessionCheck.confirmedAt}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={confirmSessionCheck}
+            className="px-2.5 py-1 rounded border border-surface-border-strong text-[11px] font-semibold text-ink-secondary hover:bg-surface-subtle shrink-0"
+          >
+            Re-verify
+          </button>
+        </div>
+
+        <div className="bg-surface-card rounded-lg border border-surface-border p-3.5 shadow-card flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {eqPassedCount === eqTotalCount ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" aria-hidden="true" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" aria-hidden="true" />
+            )}
+            <div className="min-w-0">
+              <div className="font-bold text-ink-primary truncate">
+                RQW-002 · Daily Equipment Check
+              </div>
+              <div className="text-ink-muted truncate">
+                {eqPassedCount}/{eqTotalCount} items passed · {dailyEquipmentCheck.checkedAt}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-surface-card rounded-lg border border-surface-border p-3.5 shadow-card flex items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <FileBadge className="w-5 h-5 text-primary-600 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <div className="font-bold text-ink-primary truncate">
+                RQR-702-01 · Session Certificate Stock
+              </div>
+              <div className="text-ink-muted truncate">
+                {assignedBlanksCount} QAF-805-01 blanks allocated today
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

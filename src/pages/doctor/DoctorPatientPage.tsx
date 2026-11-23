@@ -19,8 +19,9 @@ import {
 import { useHospital } from '../../context/HospitalContext';
 import { StageChip, StatusChip } from '../../components/ui/StageChip';
 import { OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
+import { RmpExaminationPanel } from './RmpExaminationPanel';
 
-type PatientChartTab = 'SUMMARY' | 'NOTES' | 'ORDERS' | 'RESULTS' | 'TRAIL';
+type PatientChartTab = 'RMP_EXAM' | 'SUMMARY' | 'NOTES' | 'ORDERS' | 'RESULTS' | 'TRAIL';
 
 export const DoctorPatientPage: React.FC = () => {
   const { recordNo } = useParams<{ recordNo: string }>();
@@ -37,7 +38,7 @@ export const DoctorPatientPage: React.FC = () => {
 
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
 
-  const [activeTab, setActiveTab] = useState<PatientChartTab>('NOTES');
+  const [activeTab, setActiveTab] = useState<PatientChartTab>('RMP_EXAM');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   // Notes form states
@@ -341,8 +342,9 @@ export const DoctorPatientPage: React.FC = () => {
         <div className="border-b border-slate-200 px-6 pt-3 flex flex-wrap items-center gap-2 bg-slate-50/60">
           {(
             [
+              { id: 'RMP_EXAM', label: 'STCW Reg. I/9 Exam & Cert' },
               { id: 'SUMMARY', label: 'Summary' },
-              { id: 'NOTES', label: 'Notes & Discharge' },
+              { id: 'NOTES', label: 'Clinical Notes' },
               {
                 id: 'ORDERS',
                 label: `Orders (${patient.orders.length})`,
@@ -373,6 +375,11 @@ export const DoctorPatientPage: React.FC = () => {
         </div>
 
         <div className="p-6">
+          {/* TAB 0: STCW REG. I/9 EXAMINATION & CERTIFICATION */}
+          {activeTab === 'RMP_EXAM' && (
+            <RmpExaminationPanel patient={patient} onFeedback={showToast} />
+          )}
+
           {/* TAB 1: SUMMARY */}
           {activeTab === 'SUMMARY' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
