@@ -13,15 +13,15 @@ export interface ActionButtonProps
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-600 hover:bg-primary-700 text-white border border-transparent shadow-sm',
+    'bg-navy-800 hover:bg-navy-900 text-white border border-transparent shadow-sm',
   secondary:
-    'bg-surface-card hover:bg-primary-50/50 text-ink-secondary hover:text-ink-primary border border-surface-border-strong hover:border-primary-300 shadow-card',
+    'bg-white hover:bg-primary-50/60 text-ink-secondary hover:text-ink-primary border border-surface-border-strong hover:border-primary-300 shadow-card',
   dark:
-    'bg-slate-900 hover:bg-slate-800 text-white border border-transparent shadow-sm',
+    'bg-navy-900 hover:bg-navy-950 text-white border border-transparent shadow-sm',
   ghost:
     'bg-transparent hover:bg-surface-subtle text-ink-secondary hover:text-ink-primary border border-transparent',
   danger:
-    'bg-red-600 hover:bg-red-700 text-white border border-transparent shadow-sm',
+    'bg-crimson-500 hover:bg-crimson-600 text-white border border-transparent shadow-sm',
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -43,7 +43,7 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
     <button
       type="button"
       disabled={disabled}
-      className={`inline-flex items-center justify-center rounded-lg font-semibold transition-all active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl font-semibold transition-all active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     >
       {leftIcon && <span aria-hidden="true">{leftIcon}</span>}

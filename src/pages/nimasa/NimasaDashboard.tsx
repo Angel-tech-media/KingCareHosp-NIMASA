@@ -108,14 +108,14 @@ export const NimasaDashboard: React.FC = () => {
           <>
             <Link
               to="/nimasa/compliance"
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold shadow-sm transition-colors"
             >
               <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Verify Certificate &amp; Returns</span>
             </Link>
             <Link
               to="/nimasa/reports"
-              className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded bg-surface-card border border-surface-border-strong hover:bg-surface-subtle text-ink-primary text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-ink-primary text-xs font-medium shadow-card transition-colors"
             >
               <FileBarChart className="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
               <span>Reports</span>
@@ -124,8 +124,8 @@ export const NimasaDashboard: React.FC = () => {
         }
       />
 
-      {/* Unified 4-Column Hairline Metric Bar */}
-      <div className="bg-surface-card border border-surface-border rounded grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-surface-border">
+      {/* Unified 4-Column Elevated Metric Bar */}
+      <div className="surface-panel grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-surface-border overflow-hidden">
         <div className="p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
             Seafarers Examined
@@ -177,7 +177,7 @@ export const NimasaDashboard: React.FC = () => {
       {/* Seafarer Examination & Certification Register */}
       <section
         aria-labelledby="nimasa-directory-heading"
-        className="bg-surface-card border border-surface-border rounded overflow-hidden"
+        className="surface-panel overflow-hidden"
       >
         <div className="px-5 py-4 border-b border-surface-border flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
           <div>
@@ -204,7 +204,7 @@ export const NimasaDashboard: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search name, KC-, NIM-MC-..."
-                className="w-full h-9 pl-8 pr-3 rounded border border-surface-border-strong text-xs text-ink-primary placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-primary-700"
+                className="w-full h-9 pl-8 pr-3 rounded-xl border border-surface-border-strong bg-white text-xs text-ink-primary placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-primary-600"
               />
             </div>
 
@@ -214,7 +214,7 @@ export const NimasaDashboard: React.FC = () => {
               onChange={(e) =>
                 setDeterminationFilter(e.target.value as 'ALL' | FitnessDetermination)
               }
-              className="h-9 px-3 rounded border border-surface-border-strong text-xs text-ink-secondary bg-surface-card focus:outline-none focus:ring-2 focus:ring-primary-700"
+              className="h-9 px-3 rounded-xl border border-surface-border-strong text-xs text-ink-secondary bg-white focus:outline-none focus:ring-2 focus:ring-primary-600"
             >
               <option value="ALL">All outcomes</option>
               <option value="Pending">Pending</option>
@@ -227,7 +227,7 @@ export const NimasaDashboard: React.FC = () => {
               aria-label="Filter by seafarer category"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-9 px-3 rounded border border-surface-border-strong text-xs text-ink-secondary bg-surface-card focus:outline-none focus:ring-2 focus:ring-primary-700"
+              className="h-9 px-3 rounded-xl border border-surface-border-strong text-xs text-ink-secondary bg-white focus:outline-none focus:ring-2 focus:ring-primary-600"
             >
               <option value="ALL">All categories ({seafarers.length})</option>
               {ALL_CATEGORIES.map((c) => (

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { HospitalProvider } from './context/HospitalContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/LoginPage';
+import { OverviewDashboard } from './pages/OverviewDashboard';
 import { NimasaDashboard } from './pages/nimasa/NimasaDashboard';
 import { NimasaPatientStage } from './pages/nimasa/NimasaPatientStage';
 import { NimasaReports } from './pages/nimasa/NimasaReports';
@@ -25,9 +26,11 @@ export const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/overview" element={<OverviewDashboard />} />
 
             {/* NIMASA Sponsor Portal (Read-Only) */}
-            <Route path="/nimasa" element={<NimasaDashboard />} />
+            <Route path="/nimasa" element={<OverviewDashboard />} />
+            <Route path="/nimasa/register" element={<NimasaDashboard />} />
             <Route
               path="/nimasa/patients/:recordNo"
               element={<NimasaPatientStage />}

@@ -11,9 +11,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   subtitle,
   actions,
 }) => (
-  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-2">
+  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-1">
     <div className="min-w-0">
-      <h1 className="text-2xl font-semibold tracking-tight text-ink-primary">
+      <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-ink-primary">
         {title}
       </h1>
       {subtitle && (

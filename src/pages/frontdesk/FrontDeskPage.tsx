@@ -59,7 +59,7 @@ export const FrontDeskPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold shadow-sm transition-colors"
           >
             <UserPlus className="w-4 h-4" aria-hidden="true" />
             <span>+ Register Seafarer</span>
@@ -116,7 +116,7 @@ export const FrontDeskPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, KC-, category..."
-            className="w-full h-9 pl-8 pr-3 rounded border border-surface-border-strong bg-surface-card text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+            className="w-full h-10 pl-8 pr-3 rounded-xl border border-surface-border-strong bg-white text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
           />
         </div>
       </div>
@@ -124,7 +124,7 @@ export const FrontDeskPage: React.FC = () => {
       {/* Serene Full-Width Arrivals Directory */}
       <section
         aria-label="Today's arrivals"
-        className="bg-surface-card border border-surface-border rounded divide-y divide-surface-border"
+        className="surface-panel overflow-hidden divide-y divide-surface-border"
       >
         {filteredArrivals.length === 0 ? (
           <div className="py-12 text-center text-sm text-ink-muted">
@@ -185,7 +185,7 @@ export const FrontDeskPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => sendToDoctor(patient.id)}
-                      className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+                      className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold transition-colors"
                     >
                       <Send className="w-3.5 h-3.5" aria-hidden="true" />
                       <span>Send to RMP</span>
@@ -193,7 +193,7 @@ export const FrontDeskPage: React.FC = () => {
                   ) : (
                     <Link
                       to={`/doctor/patients/${patient.recordNo}`}
-                      className="inline-flex items-center h-8 px-3 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle text-xs font-medium text-ink-secondary transition-colors"
+                      className="inline-flex items-center h-8 px-3.5 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-medium text-ink-secondary transition-colors"
                     >
                       Open
                     </Link>

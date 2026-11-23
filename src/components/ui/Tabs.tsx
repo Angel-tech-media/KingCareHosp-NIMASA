@@ -23,7 +23,7 @@ export function Tabs<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="border-b border-surface-border flex items-center gap-6 overflow-x-auto"
+      className="inline-flex items-center gap-1 p-1 rounded-xl bg-white/75 backdrop-blur-sm border border-surface-border/80 shadow-card overflow-x-auto max-w-full"
     >
       {tabs.map((tab) => {
         const selected = tab.id === activeTab;
@@ -34,29 +34,23 @@ export function Tabs<T extends string>({
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`relative pb-3 pt-1 text-sm font-medium whitespace-nowrap transition-colors inline-flex items-center gap-2 ${
+            className={`px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all inline-flex items-center gap-2 ${
               selected
-                ? 'text-ink-primary'
-                : 'text-ink-muted hover:text-ink-primary'
+                ? 'bg-navy-800 text-white shadow-sm'
+                : 'text-ink-muted hover:text-ink-primary hover:bg-surface-canvas/80'
             }`}
           >
             <span>{tab.label}</span>
             {typeof tab.count === 'number' && (
               <span
-                className={`text-xs px-1.5 py-0.5 rounded-full tabular-nums ${
+                className={`text-[11px] px-1.5 py-0.5 rounded-full tabular-nums ${
                   selected
-                    ? 'bg-navy-900 text-white font-semibold'
-                    : 'bg-surface-subtle text-ink-muted'
+                    ? 'bg-white/20 text-white font-semibold'
+                    : 'bg-surface-subtle text-ink-muted font-medium'
                 }`}
               >
                 {tab.count}
               </span>
-            )}
-            {selected && (
-              <span
-                aria-hidden="true"
-                className="absolute bottom-0 inset-x-0 h-0.5 bg-navy-900 rounded-full"
-              />
             )}
           </button>
         );

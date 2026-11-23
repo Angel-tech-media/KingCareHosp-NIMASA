@@ -84,7 +84,7 @@ export const DoctorDashboard: React.FC = () => {
       />
 
       {/* Single-Line Pre-Session Status Strip */}
-      <div className="px-4 py-2.5 rounded bg-surface-card border border-surface-border flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="px-5 py-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-surface-border/80 shadow-card flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-ink-secondary">
           <span className="inline-flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
@@ -127,7 +127,7 @@ export const DoctorDashboard: React.FC = () => {
       {/* Spacious Queue List */}
       <div
         role="tabpanel"
-        className="bg-surface-card border border-surface-border rounded divide-y divide-surface-border"
+        className="surface-panel overflow-hidden divide-y divide-surface-border"
       >
         {displayedPatients.length === 0 ? (
           <div className="p-12 text-center text-sm text-ink-muted">
@@ -208,7 +208,7 @@ export const DoctorDashboard: React.FC = () => {
                         startFirstAssessment(patient.id);
                         navigate(`/doctor/patients/${patient.recordNo}`);
                       }}
-                      className="h-8 px-3 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+                      className="h-8 px-3.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold transition-colors"
                     >
                       Start Exam
                     </button>

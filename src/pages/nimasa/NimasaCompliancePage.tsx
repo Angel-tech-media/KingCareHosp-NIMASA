@@ -80,7 +80,7 @@ export const NimasaCompliancePage: React.FC = () => {
       {/* TAB 1: VERIFY CERTIFICATE */}
       {activeTab === 'VERIFY' && (
         <div className="pt-2 flex justify-center">
-          <div className="w-full max-w-2xl bg-surface-card border border-surface-border rounded shadow-card p-6 sm:p-8 space-y-6">
+          <div className="w-full max-w-2xl surface-panel p-6 sm:p-8 space-y-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-ink-primary">
@@ -114,7 +114,7 @@ export const NimasaCompliancePage: React.FC = () => {
                   value={certInput}
                   onChange={(e) => setCertInput(e.target.value)}
                   placeholder="e.g. NIM-MC-2026-0401"
-                  className="w-full h-10 rounded border border-surface-border-strong px-3.5 text-sm font-mono text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3.5 text-sm font-mono text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
                 />
               </div>
 
@@ -130,7 +130,7 @@ export const NimasaCompliancePage: React.FC = () => {
                   type="text"
                   value={enquirerInput}
                   onChange={(e) => setEnquirerInput(e.target.value)}
-                  className="w-full h-10 rounded border border-surface-border-strong px-3.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
                 />
               </div>
 
@@ -141,7 +141,7 @@ export const NimasaCompliancePage: React.FC = () => {
                 </span>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded bg-navy-900 hover:bg-navy-800 text-white text-sm font-medium transition-colors shrink-0"
+                  className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium shadow-sm transition-colors shrink-0"
                 >
                   <Search className="w-4 h-4" aria-hidden="true" />
                   <span>Verify</span>
@@ -189,8 +189,8 @@ export const NimasaCompliancePage: React.FC = () => {
       {/* TAB 2: MONTHLY RETURN & STOCK */}
       {activeTab === 'RETURNS' && (
         <div className="space-y-6 pt-2">
-          {/* Compact 1-Row Hairline Stock Summary Bar */}
-          <dl className="bg-surface-card border border-surface-border rounded grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-surface-border">
+          {/* Compact 1-Row Elevated Stock Summary Bar */}
+          <dl className="surface-panel grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-surface-border overflow-hidden">
             <div className="px-5 py-3.5">
               <dt className="text-[11px] font-medium uppercase tracking-wider text-ink-muted">
                 Opening
@@ -238,7 +238,7 @@ export const NimasaCompliancePage: React.FC = () => {
           </dl>
 
           {/* Spacious Monthly Return Table */}
-          <section className="bg-surface-card border border-surface-border rounded overflow-hidden">
+          <section className="surface-panel overflow-hidden">
             <div className="px-5 py-4 border-b border-surface-border flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold text-ink-primary">
@@ -307,7 +307,7 @@ export const NimasaCompliancePage: React.FC = () => {
       {/* TAB 3: REFEREE REVIEWS */}
       {activeTab === 'REVIEWS' && (
         <div className="pt-2">
-          <div className="bg-surface-card border border-surface-border rounded divide-y divide-surface-border">
+          <div className="surface-panel overflow-hidden divide-y divide-surface-border">
             {reviewCases.length === 0 ? (
               <div className="p-10 text-center text-sm text-ink-muted">
                 No Not Fit or Limited determinations currently require review tracking.

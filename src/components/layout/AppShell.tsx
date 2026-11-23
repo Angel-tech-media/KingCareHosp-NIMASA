@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -11,16 +11,19 @@ import {
   BarChart3,
   Users,
   ClipboardList,
-  ChevronUp,
+  ChevronDown,
   Check,
   Menu,
   X,
   LayoutDashboard,
   ShieldAlert,
-  Lock,
+  Search,
+  Bell,
+  FileCheck2,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { RoleType } from '../../types';
+import { SlideOver } from '../ui';
 
 type RoleKey = RoleType | 'LOGIN';
 
@@ -115,31 +118,19 @@ const inferRoleFromPath = (path: string, fallback: RoleType): RoleKey => {
   return fallback;
 };
 
-const getBreadcrumb = (path: string): { section: string; title: string; docCode?: string } => {
-  if (path.startsWith('/nimasa/patients')) return { section: 'NIMASA Oversight', title: 'Seafarer Examination Trail', docCode: 'QA-P-804' };
-  if (path.startsWith('/nimasa/compliance')) return { section: 'NIMASA Oversight', title: 'Certificate Verification & Monthly Returns', docCode: 'RQP-202 / RQP-204' };
-  if (path.startsWith('/nimasa/reports')) return { section: 'NIMASA Oversight', title: 'Compliance Reports', docCode: 'RQP-107' };
-  if (path.startsWith('/nimasa')) return { section: 'NIMASA Oversight', title: 'Recognized Practice Register', docCode: 'RQD-02' };
-  if (path.startsWith('/front-desk')) return { section: 'Kingscare Practice', title: 'Reception & Identity Verification', docCode: 'RQP-601' };
-  if (path.startsWith('/doctor/patients')) return { section: 'RMP Examination', title: 'Seafarer Fitness Assessment', docCode: 'QAF-804-01' };
-  if (path.startsWith('/doctor')) return { section: 'RMP Examination', title: 'Seafarer Queue', docCode: 'RQP-602' };
-  if (path.startsWith('/lab')) return { section: 'Diagnostics', title: 'Clinical Laboratory', docCode: 'RQP-403' };
-  if (path.startsWith('/radiology')) return { section: 'Diagnostics', title: 'Radiology & Imaging', docCode: 'RQP-403' };
-  if (path.startsWith('/admin/qss')) return { section: 'Quality Standards', title: 'Recognition, KPIs & Certificate Stock', docCode: 'RQP-702' };
-  if (path.startsWith('/admin/governance')) return { section: 'Quality Standards', title: 'Audit, CAPA & Standing Risks', docCode: 'Series 100' };
-  if (path.startsWith('/admin/users')) return { section: 'Administration', title: 'Users & Access Control', docCode: 'RQR-404-01' };
-  if (path.startsWith('/admin/audit')) return { section: 'Administration', title: 'Restricted Records & Audit Log', docCode: 'RQR-802-01' };
-  if (path.startsWith('/admin')) return { section: 'Administration', title: 'Premises & Department Master File', docCode: 'RQP-401' };
-  return { section: 'Kingscare', title: 'STCW Reg. I/9 Portal' };
-};
-
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeRole, setActiveRole, auditLog } = useHospital();
+  const { activeRole, setActiveRole, auditLog, patients } = useHospital();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
 
   const currentPath = location.pathname;
   const currentRoleKey = inferRoleFromPath(currentPath, activeRole);
@@ -147,22 +138,27 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const currentWorkspace =
     WORKSPACES.find((w) => w.role === (currentRoleKey === 'LOGIN' ? 'NIMASA' : currentRoleKey)) ||
     WORKSPACES[0];
-  const crumb = getBreadcrumb(currentPath);
 
   useEffect(() => {
     setDrawerOpen(false);
     setAccountMenuOpen(false);
+    setSearchFocused(false);
   }, [currentPath]);
 
   useEffect(() => {
-    if (!accountMenuOpen) return;
     const onOutside = (e: MouseEvent) => {
       if (accountMenuRef.current && !accountMenuRef.current.contains(e.target as Node)) {
         setAccountMenuOpen(false);
       }
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target as Node)) {
+        setSearchFocused(false);
+      }
     };
     const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setAccountMenuOpen(false);
+      if (e.key === 'Escape') {
+        setAccountMenuOpen(false);
+        setSearchFocused(false);
+      }
     };
     document.addEventListener('mousedown', onOutside);
     document.addEventListener('keydown', onEsc);
@@ -170,7 +166,31 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       document.removeEventListener('mousedown', onOutside);
       document.removeEventListener('keydown', onEsc);
     };
-  }, [accountMenuOpen]);
+  }, []);
+
+  const searchMatches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return patients
+      .filter(
+        (p) =>
+          p.fullName.toLowerCase().includes(q) ||
+          p.recordNo.toLowerCase().includes(q) ||
+          (p.rmp?.issuedCertificate?.certificateNo.toLowerCase().includes(q) ?? false)
+      )
+      .slice(0, 5);
+  }, [patients, searchQuery]);
+
+  const hasAttentionDot = useMemo(
+    () =>
+      patients.some(
+        (p) =>
+          p.rmp?.determination === 'Pending' ||
+          p.rmp?.determination === 'Not fit' ||
+          p.rmp?.determination === 'Fit with limitation'
+      ),
+    [patients]
+  );
 
   const handleWorkspaceSelect = (ws: WorkspaceOption) => {
     setActiveRole(ws.role);
@@ -186,13 +206,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           items: [
             {
               to: '/nimasa',
-              label: 'Practice Register',
+              label: 'Overview',
               icon: LayoutDashboard,
-              isActive: (p) => p === '/nimasa' || p.startsWith('/nimasa/patients'),
+              isActive: (p) => p === '/nimasa',
+            },
+            {
+              to: '/nimasa/register',
+              label: 'Seafarer Register',
+              icon: FileCheck2,
+              isActive: (p) => p.startsWith('/nimasa/register') || p.startsWith('/nimasa/patients'),
             },
             {
               to: '/nimasa/compliance',
-              label: 'Verification & Returns',
+              label: 'Verify & Returns',
               icon: ShieldCheck,
               isActive: (p) => p.startsWith('/nimasa/compliance'),
             },
@@ -211,15 +237,41 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'Quality System',
           items: [
-            { to: '/admin', label: 'Master File', icon: Building2, isActive: (p) => p === '/admin' },
-            { to: '/admin/qss', label: 'Recognition & Stock', icon: ShieldCheck, isActive: (p) => p.startsWith('/admin/qss') },
-            { to: '/admin/governance', label: 'Audit, CAPA & Risks', icon: ShieldAlert, isActive: (p) => p.startsWith('/admin/governance') },
+            {
+              to: '/overview',
+              label: 'Overview',
+              icon: LayoutDashboard,
+              isActive: (p) => p === '/overview',
+            },
+            {
+              to: '/admin',
+              label: 'Master File',
+              icon: Building2,
+              isActive: (p) => p === '/admin',
+            },
+            {
+              to: '/admin/qss',
+              label: 'Recognition & Stock',
+              icon: ShieldCheck,
+              isActive: (p) => p.startsWith('/admin/qss'),
+            },
+            {
+              to: '/admin/governance',
+              label: 'Audit & CAPA',
+              icon: ShieldAlert,
+              isActive: (p) => p.startsWith('/admin/governance'),
+            },
           ],
         },
         {
           title: 'Access & Records',
           items: [
-            { to: '/admin/users', label: 'Users & Roles', icon: Users, isActive: (p) => p.startsWith('/admin/users') },
+            {
+              to: '/admin/users',
+              label: 'Users & Roles',
+              icon: Users,
+              isActive: (p) => p.startsWith('/admin/users'),
+            },
             {
               to: '/admin/audit',
               label: 'Audit Log',
@@ -233,24 +285,50 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     }
     return [
       {
-        title: 'Clinical Operations',
+        title: 'Clinic Operations',
         items: [
-          { to: '/front-desk', label: 'Reception', icon: UserPlus, isActive: (p) => p.startsWith('/front-desk') },
-          { to: '/doctor', label: 'RMP Examinations', icon: Stethoscope, isActive: (p) => p.startsWith('/doctor') },
-          { to: '/lab', label: 'Laboratory', icon: FlaskConical, isActive: (p) => p.startsWith('/lab') },
-          { to: '/radiology', label: 'Radiology', icon: ScanLine, isActive: (p) => p.startsWith('/radiology') },
+          {
+            to: '/overview',
+            label: 'Overview',
+            icon: LayoutDashboard,
+            isActive: (p) => p === '/overview',
+          },
+          {
+            to: '/front-desk',
+            label: 'Reception',
+            icon: UserPlus,
+            isActive: (p) => p.startsWith('/front-desk'),
+          },
+          {
+            to: '/doctor',
+            label: 'RMP Examinations',
+            icon: Stethoscope,
+            isActive: (p) => p.startsWith('/doctor'),
+          },
+          {
+            to: '/lab',
+            label: 'Laboratory',
+            icon: FlaskConical,
+            isActive: (p) => p.startsWith('/lab'),
+          },
+          {
+            to: '/radiology',
+            label: 'Radiology',
+            icon: ScanLine,
+            isActive: (p) => p.startsWith('/radiology'),
+          },
         ],
       },
     ];
   })();
 
-  /* -------------------- Login layout (full-bleed split) -------------------- */
+  /* -------------------- Login layout (full-bleed) -------------------- */
   if (isLogin) {
     return (
       <div className="min-h-screen flex flex-col bg-surface-canvas text-ink-primary">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded bg-primary-700 text-white text-sm font-semibold"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl bg-navy-800 text-white text-sm font-semibold"
         >
           Skip to main content
         </a>
@@ -261,37 +339,36 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     );
   }
 
-  /* -------------------- Production Navy Sidebar -------------------- */
+  /* -------------------- WellNest × Kingscare Light Sidebar -------------------- */
   const sidebarContent = (
-    <div className="h-full flex flex-col bg-navy-900 text-slate-200 select-none">
-      {/* Institutional Brand Header */}
-      <div className="h-14 px-4 flex items-center gap-3 border-b border-white/10">
-        <Link to={currentWorkspace.path} className="flex items-center gap-2.5 min-w-0">
-          <div
-            aria-hidden="true"
-            className="w-7 h-7 rounded bg-white text-navy-900 flex items-center justify-center font-bold text-sm shrink-0"
-          >
-            K
-          </div>
+    <div className="h-full flex flex-col bg-white/90 backdrop-blur-md text-ink-primary select-none">
+      {/* Brand Header */}
+      <div className="h-16 px-5 flex items-center gap-3 border-b border-surface-border/70">
+        <Link to={currentWorkspace.path} className="flex items-center gap-3 min-w-0">
+          <img
+            src="/kingscare-logo.png"
+            alt="Kingscare Hospitals"
+            className="w-9 h-9 object-contain shrink-0"
+          />
           <div className="leading-tight min-w-0">
-            <div className="text-sm font-semibold tracking-tight text-white truncate">
-              Kingscare Hospital
+            <div className="text-[15px] font-bold tracking-tight text-navy-800 truncate">
+              Kingscare
             </div>
-            <div className="text-[11px] text-slate-400 truncate">
-              STCW Reg. I/9 · RMP QSS
+            <div className="text-[11px] text-ink-muted truncate">
+              STCW Reg. I/9 · Abuja
             </div>
           </div>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav aria-label="Primary" className="flex-1 overflow-y-auto py-4 space-y-5">
+      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         {sections.map((section) => (
           <div key={section.title}>
-            <div className="px-4 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted/80">
               {section.title}
             </div>
-            <ul className="space-y-0.5 px-2">
+            <ul className="space-y-1">
               {section.items.map((item) => {
                 const active = item.isActive(currentPath);
                 const Icon = item.icon;
@@ -300,19 +377,29 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     <Link
                       to={item.to}
                       aria-current={active ? 'page' : undefined}
-                      className={`group flex items-center gap-2.5 h-9 px-2.5 rounded text-[13px] font-medium transition-colors ${
+                      className={`group flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] transition-all ${
                         active
-                          ? 'bg-navy-700 text-white border-l-2 border-blue-400 pl-2'
-                          : 'text-slate-300 hover:bg-navy-800 hover:text-white'
+                          ? 'bg-primary-50 text-navy-800 font-semibold'
+                          : 'text-ink-muted font-medium hover:bg-surface-canvas hover:text-ink-primary'
                       }`}
                     >
                       <Icon
-                        className={`w-4 h-4 shrink-0 ${active ? 'text-blue-300' : 'text-slate-400 group-hover:text-slate-200'}`}
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          active
+                            ? 'text-primary-600'
+                            : 'text-ink-muted/80 group-hover:text-ink-primary'
+                        }`}
                         aria-hidden="true"
                       />
                       <span className="flex-1 truncate">{item.label}</span>
                       {typeof item.badge === 'number' && (
-                        <span className="px-1.5 py-0.5 rounded bg-navy-950/70 text-[10px] font-mono text-slate-300">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-mono tabular-nums ${
+                            active
+                              ? 'bg-white text-navy-800 font-semibold'
+                              : 'bg-surface-canvas text-ink-muted'
+                          }`}
+                        >
                           {item.badge}
                         </span>
                       )}
@@ -323,85 +410,19 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             </ul>
           </div>
         ))}
-
-        {currentRoleKey === 'NIMASA' && (
-          <div className="mx-3 p-3 rounded bg-navy-950/50 border border-white/10 text-[11px] text-slate-300 leading-relaxed">
-            <div className="flex items-center gap-1.5 font-semibold text-white mb-1">
-              <Lock className="w-3 h-3 text-slate-400" aria-hidden="true" />
-              QA-P-808 Confidentiality
-            </div>
-            Agency access is restricted to fitness outcomes, certificate serials, and compliance returns.
-          </div>
-        )}
       </nav>
 
-      {/* Account & Workspace Switcher Footer */}
-      <div ref={accountMenuRef} className="relative p-2.5 border-t border-white/10">
-        {accountMenuOpen && (
-          <div
-            role="menu"
-            aria-label="Switch active workspace"
-            className="absolute bottom-full left-2.5 right-2.5 mb-1.5 rounded bg-surface-card text-ink-primary border border-surface-border shadow-xl py-1.5 z-50"
-          >
-            {(['NIMASA Oversight', 'Kingscare Practice'] as const).map((group) => (
-              <div key={group} className="py-1">
-                <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
-                  {group}
-                </div>
-                {WORKSPACES.filter((w) => w.group === group).map((ws) => {
-                  const selected = ws.role === currentWorkspace.role;
-                  return (
-                    <button
-                      key={ws.role}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={selected}
-                      onClick={() => handleWorkspaceSelect(ws)}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
-                        selected ? 'bg-surface-subtle font-semibold text-ink-primary' : 'text-ink-secondary hover:bg-surface-canvas'
-                      }`}
-                    >
-                      <span className="truncate">{ws.label}</span>
-                      {selected && <Check className="w-3.5 h-3.5 text-primary-700 shrink-0" aria-hidden="true" />}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-            <div className="border-t border-surface-border mt-1 pt-1 px-1.5">
-              <Link
-                to="/login"
-                className="flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Sign out</span>
-              </Link>
-            </div>
+      {/* Quiet Practice Status Pill */}
+      <div className="p-3.5 border-t border-surface-border/70">
+        <div className="rounded-xl bg-surface-canvas/90 border border-surface-border/70 px-3.5 py-2.5">
+          <div className="flex items-center gap-2 text-xs font-medium text-ink-primary">
+            <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span>Practice Active</span>
           </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setAccountMenuOpen((o) => !o)}
-          aria-haspopup="menu"
-          aria-expanded={accountMenuOpen}
-          className="w-full flex items-center gap-2.5 p-2 rounded hover:bg-navy-800 transition-colors text-left"
-        >
-          <span
-            aria-hidden="true"
-            className="w-8 h-8 shrink-0 rounded bg-navy-700 text-white border border-white/15 flex items-center justify-center text-xs font-semibold"
-          >
-            {currentWorkspace.initials}
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-semibold text-white truncate">{currentWorkspace.actor}</div>
-            <div className="text-[11px] text-slate-400 truncate">{currentWorkspace.actorTitle}</div>
+          <div className="text-[11px] font-mono text-ink-muted mt-0.5">
+            NIM-RMP-ABJ-2025-014
           </div>
-          <ChevronUp
-            className={`w-4 h-4 text-slate-400 transition-transform ${accountMenuOpen ? 'rotate-180' : ''}`}
-            aria-hidden="true"
-          />
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -410,26 +431,29 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     <div className="min-h-screen flex bg-surface-canvas text-ink-primary overflow-x-clip">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded bg-primary-700 text-white text-sm font-semibold"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:rounded-xl bg-navy-800 text-white text-sm font-semibold"
       >
         Skip to main content
       </a>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:block w-60 shrink-0 sticky top-0 h-screen border-r border-navy-950">
+      <aside className="hidden lg:block w-64 shrink-0 sticky top-0 h-screen border-r border-surface-border/80">
         {sidebarContent}
       </aside>
 
       {/* Mobile Drawer */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Navigation">
-          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setDrawerOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-64 max-w-[85%] shadow-xl">
+          <div
+            className="absolute inset-0 bg-navy-950/25 backdrop-blur-sm"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 w-64 max-w-[85%] shadow-2xl">
             <button
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="Close navigation"
-              className="absolute top-3 right-3 w-8 h-8 rounded flex items-center justify-center text-slate-300 hover:bg-navy-800 z-10"
+              className="absolute top-3.5 right-3 w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:bg-surface-canvas z-10"
             >
               <X className="w-4 h-4" aria-hidden="true" />
             </button>
@@ -438,39 +462,179 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </div>
       )}
 
-      {/* Main Column */}
+      {/* Main Content Column */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <header className="sticky top-0 z-30 h-14 bg-surface-card border-b border-surface-border">
-          <div className="h-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
+        {/* Minimalist Frosted Glass Topbar */}
+        <header className="sticky top-0 z-30 h-16 glass-bar">
+          <div className="h-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
               <button
                 type="button"
                 onClick={() => setDrawerOpen(true)}
                 aria-label="Open navigation"
-                className="lg:hidden -ml-1 w-9 h-9 rounded flex items-center justify-center text-ink-secondary hover:bg-surface-subtle"
+                className="lg:hidden -ml-1 w-9 h-9 rounded-full flex items-center justify-center text-ink-secondary hover:bg-surface-subtle"
               >
                 <Menu className="w-5 h-5" aria-hidden="true" />
               </button>
-              <div className="flex items-center gap-2 text-sm min-w-0">
-                <span className="text-ink-muted hidden sm:inline">{crumb.section}</span>
-                <span className="text-surface-border-strong hidden sm:inline">/</span>
-                <span className="font-semibold text-ink-primary truncate">{crumb.title}</span>
-                {crumb.docCode && (
-                  <span className="hidden md:inline font-mono text-[11px] text-ink-muted bg-surface-subtle px-1.5 py-0.5 rounded">
-                    {crumb.docCode}
-                  </span>
+
+              {/* Quick Search Pill */}
+              <div ref={searchBoxRef} className="relative max-w-md w-full">
+                <div className="flex items-center h-10 px-3.5 rounded-full bg-surface-canvas/85 border border-surface-border/80 focus-within:bg-white focus-within:border-primary-300 focus-within:ring-2 focus-within:ring-primary-100 transition-all">
+                  <Search className="w-4 h-4 text-ink-muted shrink-0 mr-2" aria-hidden="true" />
+                  <input
+                    type="search"
+                    aria-label="Quick search seafarer, KC record, or certificate serial"
+                    value={searchQuery}
+                    onFocus={() => setSearchFocused(true)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSearchFocused(true);
+                    }}
+                    placeholder="Search seafarer, KC- record, or certificate..."
+                    className="w-full bg-transparent text-xs text-ink-primary placeholder:text-ink-muted focus:outline-none"
+                  />
+                </div>
+
+                {searchFocused && searchQuery.trim().length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl bg-white/95 backdrop-blur-xl border border-surface-border shadow-card-hover py-2 z-50">
+                    {searchMatches.length === 0 ? (
+                      <div className="px-4 py-3 text-xs text-ink-muted">
+                        No matching seafarer or certificate found.
+                      </div>
+                    ) : (
+                      searchMatches.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setSearchFocused(false);
+                            setSearchQuery('');
+                            navigate(
+                              currentRoleKey === 'NIMASA'
+                                ? `/nimasa/patients/${p.recordNo}`
+                                : `/doctor/patients/${p.recordNo}`
+                            );
+                          }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-primary-50/50 transition-colors flex items-center justify-between gap-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-ink-primary truncate">
+                              {p.fullName}
+                            </div>
+                            <div className="text-[11px] font-mono text-ink-muted truncate">
+                              {p.recordNo}
+                              {p.rmp?.issuedCertificate
+                                ? ` · ${p.rmp.issuedCertificate.certificateNo}`
+                                : ''}
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-surface-canvas text-ink-secondary shrink-0">
+                            {p.rmp?.determination ?? 'Registered'}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-ink-muted shrink-0">
-              <span className="hidden md:inline font-mono text-[11px]">
-                NIM-RMP-ABJ-2025-014
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-ink-secondary font-medium">
-                <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                Audit trail active
-              </span>
+            {/* Right Utility Controls */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Activity Feed Button */}
+              <button
+                type="button"
+                onClick={() => setActivityOpen(true)}
+                aria-label="Open recent clinic activity"
+                className="relative w-9 h-9 rounded-full bg-white border border-surface-border/80 hover:bg-surface-canvas flex items-center justify-center text-ink-secondary transition-colors"
+              >
+                <Bell className="w-4 h-4" aria-hidden="true" />
+                {hasAttentionDot && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-2 right-2 w-2 h-2 rounded-full bg-crimson-500 ring-2 ring-white"
+                  />
+                )}
+              </button>
+
+              {/* Top-Right Profile & Workspace Switcher */}
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountMenuOpen}
+                  className="flex items-center gap-2.5 pl-1.5 pr-3 py-1 rounded-full bg-white border border-surface-border/80 hover:bg-surface-canvas transition-colors text-left"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="w-7 h-7 rounded-full bg-navy-800 text-white flex items-center justify-center text-[11px] font-semibold shrink-0"
+                  >
+                    {currentWorkspace.initials}
+                  </span>
+                  <div className="hidden sm:block leading-tight">
+                    <div className="text-xs font-semibold text-ink-primary max-w-[150px] truncate">
+                      {currentWorkspace.actor}
+                    </div>
+                    <div className="text-[10px] text-ink-muted max-w-[150px] truncate">
+                      {currentWorkspace.actorTitle}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-ink-muted transition-transform ${
+                      accountMenuOpen ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {accountMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Switch active workspace"
+                    className="absolute top-full right-0 mt-2 w-72 rounded-2xl bg-white/95 backdrop-blur-xl text-ink-primary border border-surface-border shadow-xl py-2 z-50"
+                  >
+                    {(['NIMASA Oversight', 'Kingscare Practice'] as const).map((group) => (
+                      <div key={group} className="py-1">
+                        <div className="px-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
+                          {group}
+                        </div>
+                        {WORKSPACES.filter((w) => w.group === group).map((ws) => {
+                          const selected = ws.role === currentWorkspace.role;
+                          return (
+                            <button
+                              key={ws.role}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={selected}
+                              onClick={() => handleWorkspaceSelect(ws)}
+                              className={`w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-xs transition-colors ${
+                                selected
+                                  ? 'bg-primary-50/70 font-semibold text-navy-800'
+                                  : 'text-ink-secondary hover:bg-surface-canvas'
+                              }`}
+                            >
+                              <span className="truncate">{ws.label}</span>
+                              {selected && (
+                                <Check className="w-3.5 h-3.5 text-primary-600 shrink-0" aria-hidden="true" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                    <div className="border-t border-surface-border mt-1 pt-1 px-2">
+                      <Link
+                        to="/login"
+                        className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-crimson-600 hover:bg-crimson-50 transition-colors"
+                      >
+                        <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Sign out</span>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -478,20 +642,48 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 w-full max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-6 focus:outline-none"
+          className="flex-1 w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 focus:outline-none"
         >
           {children}
         </main>
 
-        <footer className="border-t border-surface-border bg-surface-card">
-          <div className="px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-1 text-[11px] text-ink-muted">
-            <span>
-              Kingscare Specialist Hospital, Abuja · Recognized Medical Practitioner (STCW Reg. I/9 &amp; NIMASA Series 800)
-            </span>
-            <span className="font-medium text-ink-secondary">Angel Tech &amp; Media Limited</span>
+        <footer className="border-t border-surface-border/70 bg-white/60 backdrop-blur-sm">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 text-[11px] text-ink-muted text-center sm:text-left">
+            Kingscare Hospitals Limited · Plot 2181, Ibrahim Babangida Way, Wuse Zone 4, Abuja · STCW Reg. I/9 Recognized Practice
           </div>
         </footer>
       </div>
+
+      {/* Recent Clinic Activity SlideOver */}
+      <SlideOver
+        isOpen={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title="Recent Clinic Activity"
+        subtitle="Latest 12 live updates logged across Reception, RMP Assessment, and NIMASA Verification"
+      >
+        <div className="space-y-3">
+          {auditLog.slice(0, 12).map((entry) => (
+            <div
+              key={entry.id}
+              className="p-3.5 rounded-xl bg-surface-canvas/80 border border-surface-border/80 space-y-1"
+            >
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-ink-primary">{entry.action}</span>
+                <span className="font-mono text-[11px] text-ink-muted shrink-0">
+                  {entry.timestamp}
+                </span>
+              </div>
+              <p className="text-xs text-ink-secondary leading-relaxed">{entry.details}</p>
+              <div className="flex items-center justify-between text-[11px] text-ink-muted pt-1">
+                <span>
+                  {entry.actorName} ({entry.actorRole})
+                </span>
+                <span className="font-mono">{entry.recordNo}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </SlideOver>
     </div>
   );
 };

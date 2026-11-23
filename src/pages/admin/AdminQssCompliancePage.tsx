@@ -80,7 +80,7 @@ export const AdminQssCompliancePage: React.FC = () => {
       />
 
       {activeTab === 'RECOGNITION' && (
-        <section className="bg-surface-card rounded border border-surface-border overflow-hidden">
+        <section className="surface-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-surface-border flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-ink-primary">
@@ -159,7 +159,7 @@ export const AdminQssCompliancePage: React.FC = () => {
       )}
 
       {activeTab === 'KPIS' && (
-        <section className="bg-surface-card rounded border border-surface-border overflow-hidden">
+        <section className="surface-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-surface-border flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-ink-primary">QSS Performance Indicators</h2>
@@ -197,7 +197,7 @@ export const AdminQssCompliancePage: React.FC = () => {
       )}
 
       {activeTab === 'EQUIPMENT' && (
-        <section className="bg-surface-card rounded border border-surface-border overflow-hidden">
+        <section className="surface-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-surface-border flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-ink-primary">Daily Equipment Readiness</h2>
@@ -243,7 +243,7 @@ export const AdminQssCompliancePage: React.FC = () => {
       )}
 
       {activeTab === 'STOCK' && (
-        <section className="bg-surface-card rounded border border-surface-border overflow-hidden">
+        <section className="surface-panel overflow-hidden">
           <div className="px-6 py-4 border-b border-surface-border flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-ink-primary">
@@ -259,7 +259,7 @@ export const AdminQssCompliancePage: React.FC = () => {
               value={spoilReason}
               onChange={(e) => setSpoilReason(e.target.value)}
               placeholder="Spoilage reason..."
-              className="rounded border border-surface-border-strong bg-surface-card px-3 py-1.5 text-xs text-ink-primary sm:w-64 focus:outline-none focus:ring-2 focus:ring-navy-900"
+              className="rounded-xl border border-surface-border-strong bg-white px-3.5 py-2 text-xs text-ink-primary sm:w-64 focus:outline-none focus:ring-2 focus:ring-primary-600"
             />
           </div>
 

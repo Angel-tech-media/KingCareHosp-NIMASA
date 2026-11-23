@@ -37,8 +37,8 @@ export const NimasaReports: React.FC = () => {
         subtitle="STCW Regulation I/9 examination volume, stage turnaround benchmarks, and QSS reporting metrics."
         actions={
           <Link
-            to="/nimasa"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-navy-900 border border-surface-border bg-surface-card px-3 py-1.5 rounded transition-colors"
+            to="/nimasa/register"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-secondary hover:text-navy-800 border border-surface-border bg-white px-3.5 py-2 rounded-xl shadow-card transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" aria-hidden="true" />
             Back to Register
@@ -46,9 +46,9 @@ export const NimasaReports: React.FC = () => {
         }
       />
 
-      {/* Quiet 3-column hairline KPI strip */}
-      <div className="bg-surface-card rounded border border-surface-border grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-surface-border">
-        <div className="px-6 py-4">
+      {/* Quiet 3-column elevated KPI strip */}
+      <div className="surface-panel grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-surface-border">
+        <div className="px-6 py-5">
           <div className="text-xs font-medium text-ink-muted">Examinations (5 Days)</div>
           <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
             {totalWeeklyExaminations}
@@ -57,14 +57,14 @@ export const NimasaReports: React.FC = () => {
             {completedCount} completed in live clinic register
           </div>
         </div>
-        <div className="px-6 py-4">
+        <div className="px-6 py-5">
           <div className="text-xs font-medium text-ink-muted">Mean Turnaround Time</div>
           <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
             2h 37m
           </div>
           <div className="text-xs text-emerald-700 mt-1">Within 3h QSS target</div>
         </div>
-        <div className="px-6 py-4">
+        <div className="px-6 py-5">
           <div className="text-xs font-medium text-ink-muted">QSS Stage SLA Compliance</div>
           <div className="text-2xl font-semibold tracking-tight text-ink-primary mt-1 tabular-nums">
             96.4%
@@ -75,7 +75,7 @@ export const NimasaReports: React.FC = () => {
 
       {/* Two balanced report cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section className="bg-surface-card rounded border border-surface-border p-6">
+        <section className="surface-panel p-6">
           <div className="flex items-center justify-between pb-4 border-b border-surface-border">
             <h2 className="text-base font-semibold text-ink-primary">Daily Examination Volume</h2>
             <span className="text-xs text-ink-muted">Capacity: 20 / day</span>
@@ -91,9 +91,9 @@ export const NimasaReports: React.FC = () => {
                       <strong className="text-ink-primary font-semibold">{day.count}</strong> exams
                     </span>
                   </div>
-                  <div className="h-2.5 bg-surface-canvas rounded overflow-hidden border border-surface-border">
+                  <div className="h-2.5 bg-surface-canvas rounded-full overflow-hidden border border-surface-border/70">
                     <div
-                      className="h-full bg-navy-900 rounded-l transition-all"
+                      className="h-full bg-navy-800 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -103,7 +103,7 @@ export const NimasaReports: React.FC = () => {
           </div>
         </section>
 
-        <section className="bg-surface-card rounded border border-surface-border p-6">
+        <section className="surface-panel p-6">
           <div className="flex items-center justify-between pb-4 border-b border-surface-border">
             <h2 className="text-base font-semibold text-ink-primary">Stage Turnaround Benchmarks</h2>
             <span className="text-xs text-ink-muted">Mean vs QSS target</span>
@@ -120,9 +120,9 @@ export const NimasaReports: React.FC = () => {
                       <span className="text-ink-muted">/ {item.benchmark} min</span>
                     </span>
                   </div>
-                  <div className="h-2.5 bg-surface-canvas rounded overflow-hidden border border-surface-border">
+                  <div className="h-2.5 bg-surface-canvas rounded-full overflow-hidden border border-surface-border/70">
                     <div
-                      className="h-full bg-emerald-700 rounded-l transition-all"
+                      className="h-full bg-primary-600 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>

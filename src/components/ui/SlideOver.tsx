@@ -48,12 +48,12 @@ export const SlideOver: React.FC<SlideOverProps> = ({
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+        className="fixed inset-0 bg-navy-950/25 backdrop-blur-sm"
       />
       <div
-        className={`relative z-10 w-full ${widthClass} bg-surface-card h-full shadow-2xl border-l border-surface-border flex flex-col`}
+        className={`relative z-10 w-full ${widthClass} bg-white/95 backdrop-blur-xl h-full sm:rounded-l-2xl shadow-2xl border-l border-white/80 flex flex-col overflow-hidden`}
       >
-        <div className="px-6 py-5 border-b border-surface-border flex items-start justify-between gap-4">
+        <div className="px-6 py-5 border-b border-surface-border/80 flex items-start justify-between gap-4">
           <div>
             <h2 id={titleId} className="text-lg font-semibold text-ink-primary">
               {title}
@@ -66,7 +66,7 @@ export const SlideOver: React.FC<SlideOverProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close panel"
-            className="p-1.5 rounded text-ink-muted hover:text-ink-primary hover:bg-surface-subtle transition-colors"
+            className="p-1.5 rounded-full text-ink-muted hover:text-ink-primary hover:bg-surface-subtle transition-colors"
           >
             <X className="w-5 h-5" aria-hidden="true" />
           </button>
@@ -75,7 +75,7 @@ export const SlideOver: React.FC<SlideOverProps> = ({
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
         {footer && (
-          <div className="px-6 py-4 border-t border-surface-border bg-surface-canvas flex items-center justify-end gap-2.5">
+          <div className="px-6 py-4 border-t border-surface-border/80 bg-surface-canvas/70 backdrop-blur-md flex items-center justify-end gap-2.5">
             {footer}
           </div>
         )}
