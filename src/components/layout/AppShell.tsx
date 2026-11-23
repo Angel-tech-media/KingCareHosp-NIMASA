@@ -136,6 +136,7 @@ const getPageTitle = (path: string): { section: string; title: string } => {
   if (path.startsWith('/lab')) return { section: 'Hospital', title: 'Laboratory' };
   if (path.startsWith('/radiology')) return { section: 'Hospital', title: 'Radiology' };
   if (path.startsWith('/admin/qss')) return { section: 'Admin', title: 'QSS compliance & stock' };
+  if (path.startsWith('/admin/governance')) return { section: 'Admin', title: 'Audit, CAPA & risks' };
   if (path.startsWith('/admin/users')) return { section: 'Admin', title: 'Users & roles' };
   if (path.startsWith('/admin/audit')) return { section: 'Admin', title: 'Audit log' };
   if (path.startsWith('/admin')) return { section: 'Admin', title: 'Master file' };
@@ -324,6 +325,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           items: [
             { to: '/admin', label: 'Master file', icon: Building2, isActive: (p) => p === '/admin' },
             { to: '/admin/qss', label: 'QSS & stock', icon: ShieldCheck, isActive: (p) => p.startsWith('/admin/qss') },
+            { to: '/admin/governance', label: 'Audit, CAPA & risks', icon: ClipboardList, isActive: (p) => p.startsWith('/admin/governance') },
             { to: '/admin/users', label: 'Users & roles', icon: Users, isActive: (p) => p.startsWith('/admin/users') },
             {
               to: '/admin/audit',

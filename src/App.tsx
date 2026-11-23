@@ -15,6 +15,7 @@ import { AdminMasterFile } from './pages/admin/AdminMasterFile';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminAuditLogPage } from './pages/admin/AdminAuditLogPage';
 import { AdminQssCompliancePage } from './pages/admin/AdminQssCompliancePage';
+import { AdminGovernancePage } from './pages/admin/AdminGovernancePage';
 
 export const App: React.FC = () => {
   return (
@@ -57,6 +58,7 @@ export const App: React.FC = () => {
             {/* Hospital: Admin */}
             <Route path="/admin" element={<AdminMasterFile />} />
             <Route path="/admin/qss" element={<AdminQssCompliancePage />} />
+            <Route path="/admin/governance" element={<AdminGovernancePage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/audit" element={<AdminAuditLogPage />} />
 

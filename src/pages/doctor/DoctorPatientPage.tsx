@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -99,7 +99,7 @@ export const DoctorPatientPage: React.FC = () => {
     e.preventDefault();
     completeFirstAssessment(patient.id, shortSummary, fullNote);
     showToast(
-      'First assessment marked complete — NIMASA timeline & Audit Log updated!'
+      'First assessment marked complete â€” NIMASA timeline & Audit Log updated!'
     );
   };
 
@@ -115,19 +115,19 @@ export const DoctorPatientPage: React.FC = () => {
     );
     setActiveTab('ORDERS');
     showToast(
-      `Ordered ${selectedTests.length} test(s) — Stage updated to "Tests requested".`
+      `Ordered ${selectedTests.length} test(s) â€” Stage updated to "Tests requested".`
     );
   };
 
   const handleAdmit = () => {
     admitPatient(patient.id, 'Executive Ward B - Bed 06');
-    showToast('Patient admitted to Executive Ward B — Stage updated to "Admitted".');
+    showToast('Patient admitted to Executive Ward B â€” Stage updated to "Admitted".');
   };
 
   const handleSaveSecondAssessment = (e: React.FormEvent) => {
     e.preventDefault();
     recordSecondAssessment(patient.id, secondNote);
-    showToast('Second assessment recorded — Stage updated to "Second assessment".');
+    showToast('Second assessment recorded â€” Stage updated to "Second assessment".');
   };
 
   const handleAddMedication = (e: React.FormEvent) => {
@@ -146,7 +146,7 @@ export const DoctorPatientPage: React.FC = () => {
   const handleDischarge = (e: React.FormEvent) => {
     e.preventDefault();
     dischargePatient(patient.id, dischargeText);
-    showToast('Patient discharged — Status set to Inactive / Discharged.');
+    showToast('Patient discharged â€” Status set to Inactive / Discharged.');
   };
 
   return (
@@ -199,7 +199,7 @@ export const DoctorPatientPage: React.FC = () => {
               </p>
               <p className="text-xs text-blue-700">
                 Published by {publishedOrders[0].completedBy} at{' '}
-                {publishedOrders[0].publishedAt} • Ready for Second Assessment
+                {publishedOrders[0].publishedAt} â€¢ Ready for Second Assessment
               </p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export const DoctorPatientPage: React.FC = () => {
               )}
               {patient.rmp?.isUnder18 && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200">
-                  Under 18 · 1-Yr Max
+                  Under 18 Â· 1-Yr Max
                 </span>
               )}
               {patient.rmp && (
@@ -246,13 +246,13 @@ export const DoctorPatientPage: React.FC = () => {
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
               <span>
-                {patient.gender} · DOB: {patient.dob} · {patient.rmp?.nationality || 'Nigerian'}
+                {patient.gender} Â· DOB: {patient.dob} Â· {patient.rmp?.nationality || 'Nigerian'}
               </span>
-              <span>·</span>
+              <span>Â·</span>
               <span>ID: {patient.rmp?.idNumber || 'Verified'}</span>
-              <span>·</span>
+              <span>Â·</span>
               <span>Phone: {patient.phone}</span>
-              <span>·</span>
+              <span>Â·</span>
               <span className="inline-flex items-center gap-1">
                 <Clock className="w-3.5 h-3.5 text-ink-muted" aria-hidden="true" />
                 Arrived: {patient.arrivedAt}
@@ -312,7 +312,7 @@ export const DoctorPatientPage: React.FC = () => {
             </span>
           </div>
           <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80">
-            <span className="text-[11px] text-slate-500 block">SpO₂</span>
+            <span className="text-[11px] text-slate-500 block">SpOâ‚‚</span>
             <span className="text-sm font-bold text-slate-900">
               {patient.vitals.spo2}
             </span>
@@ -421,7 +421,7 @@ export const DoctorPatientPage: React.FC = () => {
 
                 <div className="p-4 rounded-lg border border-slate-200 bg-amber-50/40 space-y-2">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                    Confidential Full Clinical Note (Kingscare Only — Hidden from
+                    Confidential Full Clinical Note (Kingscare Only â€” Hidden from
                     NIMASA & Lab)
                   </h4>
                   <p className="text-sm text-slate-800">
@@ -459,7 +459,7 @@ export const DoctorPatientPage: React.FC = () => {
                             {m.name} ({m.dosage})
                           </p>
                           <p className="text-slate-500">
-                            {m.frequency} • Duration: {m.duration}
+                            {m.frequency} â€¢ Duration: {m.duration}
                           </p>
                         </div>
                         <span className="text-[11px] text-slate-400">
@@ -520,7 +520,7 @@ export const DoctorPatientPage: React.FC = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Full Clinical Note (Confidential — Held by Kingscare Only;
+                      Full Clinical Note (Confidential â€” Held by Kingscare Only;
                       Hidden from NIMASA & Lab)
                     </label>
                     <textarea
@@ -547,17 +547,8 @@ export const DoctorPatientPage: React.FC = () => {
                         onClick={() => setIsOrderModalOpen(true)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-primary-50 text-primary-700 border border-primary-300 text-xs font-semibold shadow-sm transition-colors"
                       >
-                        <FlaskConical className="w-3.5 h-3.5" />
-                        <span>Send for tests</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={handleAdmit}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white hover:bg-purple-50 text-purple-800 border border-purple-300 text-xs font-semibold shadow-sm transition-colors"
-                      >
-                        <BedDouble className="w-3.5 h-3.5" />
-                        <span>Admit patient</span>
+                        <FlaskConical className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Order Investigations / Referral (RQP-604)</span>
                       </button>
                     </div>
                   </div>
@@ -595,140 +586,50 @@ export const DoctorPatientPage: React.FC = () => {
                 </form>
               </div>
 
-              {/* Right 5 Cols: Medication List & Discharge with Summary */}
+              {/* Right 5 Cols: Record Completeness Check (RQC-801-01) */}
               <div className="lg:col-span-5 space-y-6">
-                {/* Medication Card */}
-                <div className="p-5 rounded-lg border border-slate-200 bg-white space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Pill className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-base font-bold text-slate-900">
-                      3. Medication Prescription
-                    </h3>
-                  </div>
-
-                  <form
-                    onSubmit={handleAddMedication}
-                    className="space-y-3 bg-slate-50 p-3.5 rounded-lg border border-slate-200"
-                  >
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Drug Name
-                      </label>
-                      <input
-                        type="text"
-                        value={medName}
-                        onChange={(e) => setMedName(e.target.value)}
-                        placeholder="e.g. Tab Amoxicillin-Clavulanate"
-                        className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs"
-                      />
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Dosage
-                        </label>
-                        <input
-                          type="text"
-                          value={medDosage}
-                          onChange={(e) => setMedDosage(e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Frequency
-                        </label>
-                        <input
-                          type="text"
-                          value={medFreq}
-                          onChange={(e) => setMedFreq(e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                          Duration
-                        </label>
-                        <input
-                          type="text"
-                          value={medDuration}
-                          onChange={(e) => setMedDuration(e.target.value)}
-                          className="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Medication to List</span>
-                    </button>
-                  </form>
-
-                  {/* Existing Meds */}
-                  <div className="space-y-2">
-                    {patient.medications.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic">
-                        No medications added yet.
-                      </p>
-                    ) : (
-                      patient.medications.map((m) => (
-                        <div
-                          key={m.id}
-                          className="p-2.5 rounded-lg border border-slate-200 flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-bold text-slate-900">
-                              {m.name}
-                            </span>{' '}
-                            <span className="text-blue-700 font-semibold">
-                              {m.dosage}
-                            </span>
-                            <p className="text-[11px] text-slate-500">
-                              {m.frequency} • {m.duration}
-                            </p>
-                          </div>
-                          <span className="text-[10px] text-slate-400">
-                            {m.prescribedAt.split(', ')[1]}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Discharge Card */}
-                <form
-                  onSubmit={handleDischarge}
-                  className="p-5 rounded-lg border border-slate-200 bg-slate-50/60 space-y-3"
-                >
+                <div className="p-5 rounded-lg border border-surface-border bg-surface-canvas space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <LogOut className="w-4 h-4 text-slate-700" />
-                      4. Discharge with Summary
+                    <h3 className="text-sm font-bold text-ink-primary flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+                      Record Completeness Check (RQC-801-01)
                     </h3>
-                    <span className="text-xs text-slate-500">
-                      Sets status to Discharged (Inactive)
+                    <span className="text-[11px] font-semibold text-primary-700">
+                      RQP-801 §7.2
                     </span>
                   </div>
-
-                  <textarea
-                    rows={3}
-                    value={dischargeText}
-                    onChange={(e) => setDischargeText(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs sm:text-sm"
-                    placeholder="Discharge summary and fitness-for-duty note..."
-                  />
-
-                  <button
-                    type="submit"
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Discharge Patient Now</span>
-                  </button>
-                </form>
+                  <p className="text-xs text-ink-muted">
+                    Checked by a person other than the examining RMP within <strong>1 working day</strong> for
+                    Not Fit / Limited cases (5 working days for Fit).
+                  </p>
+                  <ul className="space-y-1.5 text-xs">
+                    {[
+                      { label: "1. RQF-601-01 ID copy & live day photograph", done: Boolean(patient.rmp?.idVerifiedOriginal && patient.rmp?.photoCaptured) },
+                      { label: "2. RQF-601-02 Seafarer health declaration signed", done: Boolean(patient.rmp?.healthDeclarationSigned) },
+                      { label: "3. RQF-503-01 Duties & department statement", done: Boolean(patient.rmp?.category) },
+                      { label: "4. QAF-804-01 & RQF-602-01 examination record", done: Boolean(patient.rmp?.statutoryCriteria) },
+                      { label: "5. RQF-603-01 Vision, colour & audiometry signed", done: Boolean(patient.rmp?.visionHearing) },
+                      { label: "6. Investigation / specialist reports filed", done: patient.orders.every((o) => o.status === "Published") },
+                      { label: "7. RQC-605-01 Determination check complete", done: patient.rmp?.determination !== "Pending" },
+                      { label: "8. QAF-804-02 Right of review copy (if Limited/Not fit)", done: patient.rmp?.determination === "Fit" || Boolean(patient.rmp?.rightOfReview) },
+                      { label: "9. QAF-805-01 & RQF-701-01 copies (where issued)", done: patient.rmp?.determination === "Not fit" || Boolean(patient.rmp?.issuedCertificate) },
+                    ].map((row) => (
+                      <li
+                        key={row.label}
+                        className="flex items-center justify-between gap-2 p-2 rounded bg-surface-card border border-surface-border"
+                      >
+                        <span className="text-ink-secondary">{row.label}</span>
+                        <span
+                          className={`text-[11px] font-bold shrink-0 ${
+                            row.done ? "text-emerald-700" : "text-amber-700"
+                          }`}
+                        >
+                          {row.done ? "Complete" : "Pending"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           )}
@@ -875,7 +776,7 @@ export const DoctorPatientPage: React.FC = () => {
                       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
                         <div>
                           <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
-                            {ord.department} • {ord.category}
+                            {ord.department} â€¢ {ord.category}
                           </span>
                           <h4 className="text-base font-bold text-slate-900">
                             {ord.testName}
