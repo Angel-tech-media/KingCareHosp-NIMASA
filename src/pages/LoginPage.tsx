@@ -16,6 +16,10 @@ function homePathForRole(role: RoleType): string {
       return '/lab';
     case 'RADIOLOGY':
       return '/radiology';
+    case 'ENT':
+      return '/ent';
+    case 'EYE':
+      return '/eye';
     case 'ADMIN':
     default:
       return '/admin';
@@ -72,7 +76,7 @@ export const LoginPage: React.FC = () => {
             alt="Kingscare Hospitals"
             className="w-12 h-12 object-contain"
           />
-          <span>Connecting to Kingscare Clinic Database...</span>
+          <span>Loading Kingscare Portal...</span>
         </div>
       </div>
     );
@@ -171,7 +175,7 @@ export const LoginPage: React.FC = () => {
               Recognized Medical Practitioner Quality Standards System
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed max-w-md">
-              Database-backed seafarer medical fitness management, diagnostic equipment register,
+              Statutory seafarer medical fitness examinations, diagnostic equipment register,
               QAF-805-01 serial stock control, and role-restricted NIMASA oversight.
             </p>
           </div>
@@ -225,7 +229,7 @@ export const LoginPage: React.FC = () => {
             <Lock className="w-3.5 h-3.5" aria-hidden="true" />
             All authentication &amp; determinations logged
           </span>
-          <span>SQLite Persistent Backend</span>
+          <span>Kingscare × NIMASA</span>
         </div>
       </div>
 
@@ -242,8 +246,8 @@ export const LoginPage: React.FC = () => {
                 Practice &amp; Administrator Setup
               </h2>
               <p className="text-xs text-ink-muted mt-1">
-                No user accounts exist in the database yet. Create your initial Medical Director / QSS
-                Administrator account to start registering equipment, staff, and seafarers.
+                Complete initial facility setup to create the primary Medical Director / QSS
+                Administrator account before registering equipment, staff, and seafarers.
               </p>
             </div>
 

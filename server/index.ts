@@ -11,7 +11,7 @@ const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || '0.0.0.0';
 
 const db = openDatabase();
-const app = Fastify({ logger: false });
+const app = Fastify({ logger: false, bodyLimit: 16 * 1024 * 1024 });
 
 app.get('/api/health', async () => ({
   status: 'ok',

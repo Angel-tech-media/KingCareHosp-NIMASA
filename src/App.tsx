@@ -31,6 +31,10 @@ function homePathForRole(role: RoleType): string {
       return '/lab';
     case 'RADIOLOGY':
       return '/radiology';
+    case 'ENT':
+      return '/ent';
+    case 'EYE':
+      return '/eye';
     case 'ADMIN':
     default:
       return '/admin';
@@ -74,7 +78,7 @@ export const App: React.FC = () => {
             <Route
               path="/overview"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY']}>
+                <ProtectedRoute allowedRoles={['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']}>
                   <OverviewDashboard />
                 </ProtectedRoute>
               }
@@ -150,7 +154,7 @@ export const App: React.FC = () => {
               }
             />
 
-            {/* Hospital: Laboratory and Radiology */}
+            {/* Hospital: Laboratory, Radiology, ENT & Eye Clinic */}
             <Route
               path="/lab"
               element={
@@ -164,6 +168,22 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute allowedRoles={['RADIOLOGY', 'ADMIN']}>
                   <DiagnosticsPage department="Radiology" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ent"
+              element={
+                <ProtectedRoute allowedRoles={['ENT', 'ADMIN']}>
+                  <DiagnosticsPage department="ENT & Audiology" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/eye"
+              element={
+                <ProtectedRoute allowedRoles={['EYE', 'ADMIN']}>
+                  <DiagnosticsPage department="Eye Clinic" />
                 </ProtectedRoute>
               }
             />

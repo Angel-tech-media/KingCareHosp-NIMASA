@@ -11,6 +11,8 @@ const ROLE_DEFAULTS: Record<RoleType, { title: string; department: string }> = {
   DOCTOR: { title: 'Recognized Medical Practitioner', department: 'Maritime Medicine (RMP Desk)' },
   LAB: { title: 'Senior Medical Lab Scientist', department: 'Laboratory & Pathology Services' },
   RADIOLOGY: { title: 'Consultant Radiologist', department: 'Radiology / X-Ray & Diagnostic Imaging' },
+  ENT: { title: 'Audiology Technician / ENT Officer', department: 'ENT & Audiology Unit' },
+  EYE: { title: 'Clinical Optometrist / Vision Technician', department: 'Ophthalmology & Colour Vision Clinic' },
   NIMASA: { title: 'NIMASA Medical Liaison Officer', department: 'NIMASA Maritime Safety Oversight' },
 };
 
@@ -341,6 +343,8 @@ export const AdminUsersPage: React.FC = () => {
                 <option value="DOCTOR">DOCTOR (RMP)</option>
                 <option value="LAB">LAB (Laboratory)</option>
                 <option value="RADIOLOGY">RADIOLOGY (Imaging)</option>
+                <option value="ENT">ENT (ENT &amp; Audiology)</option>
+                <option value="EYE">EYE (Eye Clinic / Vision)</option>
                 <option value="ADMIN">ADMIN (Medical Director / QSS)</option>
                 <option value="NIMASA">NIMASA (Agency Liaison · Read-Only)</option>
               </select>

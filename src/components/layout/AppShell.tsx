@@ -19,6 +19,8 @@ import {
   Search,
   Bell,
   FileCheck2,
+  Ear,
+  Eye,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { RoleType } from '../../types';
@@ -60,6 +62,10 @@ function homePathForRole(role: RoleType): string {
       return '/lab';
     case 'RADIOLOGY':
       return '/radiology';
+    case 'ENT':
+      return '/ent';
+    case 'EYE':
+      return '/eye';
     case 'ADMIN':
     default:
       return '/admin';
@@ -251,6 +257,18 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               isActive: (p) => p.startsWith('/radiology'),
             },
             {
+              to: '/ent',
+              label: 'ENT & Audiology',
+              icon: Ear,
+              isActive: (p) => p.startsWith('/ent'),
+            },
+            {
+              to: '/eye',
+              label: 'Eye Clinic',
+              icon: Eye,
+              isActive: (p) => p.startsWith('/eye'),
+            },
+            {
               to: '/nimasa/compliance',
               label: 'Verify & Returns',
               icon: FileCheck2,
@@ -292,6 +310,30 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           items: [
             { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/lab', label: 'Laboratory', icon: FlaskConical, isActive: (p) => p.startsWith('/lab') },
+          ],
+        },
+      ];
+    }
+
+    if (role === 'ENT') {
+      return [
+        {
+          title: 'ENT & Audiology',
+          items: [
+            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+            { to: '/ent', label: 'ENT & Audiology', icon: Ear, isActive: (p) => p.startsWith('/ent') },
+          ],
+        },
+      ];
+    }
+
+    if (role === 'EYE') {
+      return [
+        {
+          title: 'Ophthalmology & Vision',
+          items: [
+            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
+            { to: '/eye', label: 'Eye Clinic', icon: Eye, isActive: (p) => p.startsWith('/eye') },
           ],
         },
       ];
@@ -505,6 +547,10 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                               navigate('/front-desk');
                             } else if (role === 'LAB') {
                               navigate('/lab');
+                            } else if (role === 'ENT') {
+                              navigate('/ent');
+                            } else if (role === 'EYE') {
+                              navigate('/eye');
                             } else {
                               navigate('/radiology');
                             }
@@ -642,7 +688,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         isOpen={activityOpen}
         onClose={() => setActivityOpen(false)}
         title="Recent Clinic Activity"
-        subtitle="Latest live updates stored in the Kingscare audit database"
+        subtitle="Latest live updates recorded across Reception, Clinical Desks, and Oversight"
       >
         <div className="space-y-3">
           {auditLog.length === 0 ? (

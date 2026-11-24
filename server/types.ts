@@ -17,6 +17,8 @@ export type RoleType =
   | 'DOCTOR'
   | 'LAB'
   | 'RADIOLOGY'
+  | 'ENT'
+  | 'EYE'
   | 'ADMIN';
 
 export interface AuthUser {
@@ -57,9 +59,12 @@ export interface DiagnosticOrder {
   patientId: string;
   recordNo: string;
   patientName: string;
-  department: 'Laboratory' | 'Radiology';
-  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging';
+  department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic';
+  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging' | 'Audiology' | 'Vision';
   testName: string;
+  clinicalInstruction?: string;
+  attachmentName?: string;
+  attachmentMime?: string;
   orderedBy: string;
   orderedAt: string;
   status: 'Pending' | 'Draft' | 'Published';

@@ -199,7 +199,7 @@ export const AdminQssCompliancePage: React.FC = () => {
             className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card transition-colors"
           >
             <Database className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
-            <span>Database Tools</span>
+            <span>System Setup</span>
           </button>
         }
       />
@@ -339,7 +339,7 @@ export const AdminQssCompliancePage: React.FC = () => {
             <div>
               <h2 className="text-base font-semibold text-ink-primary">QSS Performance Indicators</h2>
               <p className="text-xs text-ink-muted mt-0.5">
-                Calculated directly from live SQLite examinations and equipment logs · RQM-01 §13
+                Calculated directly from live clinic examinations and equipment logs · RQM-01 §13
               </p>
             </div>
             <span className="text-xs text-ink-muted">Live from system registers</span>
@@ -774,20 +774,20 @@ export const AdminQssCompliancePage: React.FC = () => {
         </form>
       </SlideOver>
 
-      {/* Drawer: Database Tools */}
+      {/* Drawer: Practice Environment */}
       <SlideOver
         isOpen={dbToolsOpen}
         onClose={() => setDbToolsOpen(false)}
-        title="SQLite Database Tools"
-        subtitle="Switch between sample demonstration records and a clean empty setup"
+        title="Practice Environment"
+        subtitle="Load sample demonstration records or reset for fresh onboarding"
       >
         <div className="space-y-5 text-xs">
           <div className="p-4 rounded-xl bg-surface-canvas border border-surface-border space-y-3">
             <div className="font-semibold text-sm text-ink-primary">Load Sample Clinic Data</div>
             <p className="text-ink-secondary leading-relaxed">
-              Replaces current database tables with 6 sample role accounts (password{' '}
+              Loads 6 sample role accounts (password{' '}
               <code className="font-mono font-semibold">Kingscare@2026</code>), 5 calibrated devices, 12
-              blank serials, and 6 seafarer records, then signs out so you can test each login.
+              blank serials, and 6 seafarer records for demonstration, then returns to Sign In.
             </p>
             <button
               type="button"
@@ -801,9 +801,9 @@ export const AdminQssCompliancePage: React.FC = () => {
           </div>
 
           <div className="p-4 rounded-xl bg-crimson-50/70 border border-crimson-100 space-y-3">
-            <div className="font-semibold text-sm text-crimson-700">Reset to Clean Empty Database</div>
+            <div className="font-semibold text-sm text-crimson-700">Reset to Fresh Installation</div>
             <p className="text-ink-secondary leading-relaxed">
-              Clears all users, equipment, seafarers, and audit entries so the app restarts on the
+              Clears all users, equipment, seafarers, and audit entries so the portal restarts on the
               First-Time Practice &amp; Admin Setup wizard.
             </p>
             <button
@@ -813,7 +813,7 @@ export const AdminQssCompliancePage: React.FC = () => {
               className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-crimson-500 hover:bg-crimson-600 text-white font-semibold"
             >
               <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Reset Database</span>
+              <span>Reset Practice</span>
             </button>
           </div>
         </div>

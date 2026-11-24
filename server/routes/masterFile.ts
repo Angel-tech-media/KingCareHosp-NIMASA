@@ -153,7 +153,7 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
   });
 
   app.post('/api/departments/:id/equipment', async (req, reply) => {
-    const user = requireAuth(db, req, reply, ['ADMIN', 'LAB', 'RADIOLOGY']);
+    const user = requireAuth(db, req, reply, ['ADMIN', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']);
     if (!user) return;
     const { id } = req.params as { id: string };
 
@@ -162,6 +162,12 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
     }
     if (user.portalRole === 'RADIOLOGY' && id !== 'radiology') {
       return reply.code(403).send({ error: 'Radiology users can only register Radiology equipment.' });
+    }
+    if (user.portalRole === 'ENT' && id !== 'ent') {
+      return reply.code(403).send({ error: 'ENT users can only register ENT & Audiology equipment.' });
+    }
+    if (user.portalRole === 'EYE' && id !== 'eye') {
+      return reply.code(403).send({ error: 'Eye Clinic users can only register Eye Clinic equipment.' });
     }
 
     const dept = db.prepare('SELECT id, name FROM departments WHERE id = ?').get(id) as
@@ -216,7 +222,7 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
   });
 
   app.patch('/api/equipment/:id', async (req, reply) => {
-    const user = requireAuth(db, req, reply, ['ADMIN', 'LAB', 'RADIOLOGY']);
+    const user = requireAuth(db, req, reply, ['ADMIN', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']);
     if (!user) return;
     const { id } = req.params as { id: string };
 
@@ -231,6 +237,12 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
     }
     if (user.portalRole === 'RADIOLOGY' && deptId !== 'radiology') {
       return reply.code(403).send({ error: 'Forbidden for non-Radiology equipment.' });
+    }
+    if (user.portalRole === 'ENT' && deptId !== 'ent') {
+      return reply.code(403).send({ error: 'Forbidden for non-ENT equipment.' });
+    }
+    if (user.portalRole === 'EYE' && deptId !== 'eye') {
+      return reply.code(403).send({ error: 'Forbidden for non-Eye Clinic equipment.' });
     }
 
     const parsed = equipmentUpdateSchema.safeParse(req.body);
@@ -279,7 +291,7 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
   });
 
   app.patch('/api/equipment/:id/daily-check', async (req, reply) => {
-    const user = requireAuth(db, req, reply, ['ADMIN', 'DOCTOR', 'LAB', 'RADIOLOGY']);
+    const user = requireAuth(db, req, reply, ['ADMIN', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']);
     if (!user) return;
     const { id } = req.params as { id: string };
 

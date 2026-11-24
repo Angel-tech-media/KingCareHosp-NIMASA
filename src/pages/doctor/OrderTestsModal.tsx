@@ -1,16 +1,39 @@
 import React, { useState } from 'react';
-import { FlaskConical, ScanLine, CheckSquare } from 'lucide-react';
+import { FlaskConical, ScanLine, Ear, Eye, CheckSquare } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 
 export interface SampleTestCatalogItem {
   id: string;
-  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging';
-  department: 'Laboratory' | 'Radiology';
+  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging' | 'Audiology' | 'Vision';
+  department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic';
   testName: string;
   referenceRange: string;
 }
 
 export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
+  // Eye Clinic
+  {
+    id: 'tst-eye-1',
+    category: 'Vision',
+    department: 'Eye Clinic',
+    testName: 'Visual Acuity (Snellen Decimal) & Ishihara Colour Screening (D65)',
+    referenceRange: 'STCW Table A-I/9 by duty category (Deck aided ≥ 0.5, Engine ≥ 0.4)',
+  },
+  {
+    id: 'tst-eye-2',
+    category: 'Vision',
+    department: 'Eye Clinic',
+    testName: 'Clinical Vision Specialist Confirmatory CIE Colour Test (RQF-403-01)',
+    referenceRange: 'CIE Standard 1 or 2 (Deck), CIE Standard 1–3 (Engine/GMDSS)',
+  },
+  // ENT & Audiology
+  {
+    id: 'tst-ent-1',
+    category: 'Audiology',
+    department: 'ENT & Audiology',
+    testName: 'Pure-Tone Unaided Audiometry (500–3000 Hz) & Speech Assessment',
+    referenceRange: '≤ 30 dB better ear, ≤ 40 dB other ear; Speech clear',
+  },
   // Blood
   {
     id: 'tst-1',
@@ -40,7 +63,7 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
     testName: 'Liver Function Test (LFT Panel)',
     referenceRange: 'ALT: 7–56 U/L | AST: 8–33 U/L | Bilirubin < 1.2 mg/dL',
   },
-  // Stool
+  // Stool & Tissue
   {
     id: 'tst-5',
     category: 'Stool',
@@ -55,22 +78,7 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
     testName: 'Faecal Occult Blood (FOB) Test',
     referenceRange: 'Negative',
   },
-  // Tissue
-  {
-    id: 'tst-7',
-    category: 'Tissue',
-    department: 'Laboratory',
-    testName: 'Tissue Biopsy Histopathology (H&E Stain)',
-    referenceRange: 'Benign cellular architecture / No dysplasia',
-  },
-  {
-    id: 'tst-8',
-    category: 'Tissue',
-    department: 'Laboratory',
-    testName: 'Fine Needle Aspiration Cytology (FNAC)',
-    referenceRange: 'Normal cytology',
-  },
-  // Imaging (X-ray, ultrasound)
+  // Imaging
   {
     id: 'tst-9',
     category: 'Imaging',
@@ -85,13 +93,6 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
     testName: 'Abdominal & Pelvic Ultrasound Scan',
     referenceRange: 'Normal hepatobiliary and renal sonography',
   },
-  {
-    id: 'tst-11',
-    category: 'Imaging',
-    department: 'Radiology',
-    testName: 'Musculoskeletal Joint X-Ray (AP & Lateral)',
-    referenceRange: 'Normal bone alignment, no cortical fracture',
-  },
 ];
 
 interface OrderTestsModalProps {
@@ -99,7 +100,7 @@ interface OrderTestsModalProps {
   onClose: () => void;
   patientName: string;
   recordNo: string;
-  onConfirmOrders: (selectedTests: SampleTestCatalogItem[]) => void;
+  onConfirmOrders: (selectedTests: SampleTestCatalogItem[], clinicalInstruction: string) => void;
 }
 
 export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
@@ -109,7 +110,10 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
   recordNo,
   onConfirmOrders,
 }) => {
-  const [selectedIds, setSelectedIds] = useState<string[]>(['tst-1']);
+  const [selectedIds, setSelectedIds] = useState<string[]>(['tst-eye-1', 'tst-ent-1']);
+  const [clinicalInstruction, setClinicalInstruction] = useState(
+    'Perform objective delegated measurements per STCW Table A-I/9 and record values without issuing fit/unfit verdict (RQP-303).'
+  );
 
   const toggleId = (id: string) => {
     setSelectedIds((prev) =>
@@ -119,52 +123,50 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const chosen = SAMPLE_TESTS_CATALOG.filter((t) =>
-      selectedIds.includes(t.id)
-    );
+    const chosen = SAMPLE_TESTS_CATALOG.filter((t) => selectedIds.includes(t.id));
     if (chosen.length === 0) return;
-    onConfirmOrders(chosen);
+    onConfirmOrders(chosen, clinicalInstruction.trim());
     onClose();
   };
 
-  const categories: ('Blood' | 'Stool' | 'Tissue' | 'Imaging')[] = [
-    'Blood',
-    'Stool',
-    'Tissue',
-    'Imaging',
+  const groups: {
+    key: SampleTestCatalogItem['category'];
+    title: string;
+    deptLabel: string;
+    icon: React.ElementType;
+  }[] = [
+    { key: 'Vision', title: 'Vision & Colour Screening', deptLabel: 'Eye Clinic', icon: Eye },
+    { key: 'Audiology', title: 'Audiometry & Hearing', deptLabel: 'ENT & Audiology', icon: Ear },
+    { key: 'Blood', title: 'Haematology & Blood Chemistry', deptLabel: 'Laboratory', icon: FlaskConical },
+    { key: 'Stool', title: 'Microbiology / Stool', deptLabel: 'Laboratory', icon: FlaskConical },
+    { key: 'Imaging', title: 'Radiology & Ultrasound', deptLabel: 'Radiology', icon: ScanLine },
   ];
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Order Diagnostic Tests (Laboratory & Radiology)"
-      subtitle={`Patient: ${patientName} (${recordNo}) • Stamps electronic trail as "Tests requested"`}
+      title="Order Diagnostic Tests & Specialist Screening"
+      subtitle={`Seafarer: ${patientName} (${recordNo}) · Stamps electronic trail as "Tests requested"`}
       maxWidthClass="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {categories.map((cat) => {
-            const items = SAMPLE_TESTS_CATALOG.filter(
-              (t) => t.category === cat
-            );
-            const isImaging = cat === 'Imaging';
+          {groups.map((grp) => {
+            const items = SAMPLE_TESTS_CATALOG.filter((t) => t.category === grp.key);
+            const Icon = grp.icon;
             return (
               <div
-                key={cat}
-                className="rounded-lg border border-slate-200 p-4 bg-slate-50/50 space-y-2.5"
+                key={grp.key}
+                className="rounded-xl border border-surface-border p-4 bg-surface-canvas/70 space-y-2.5"
               >
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                    {isImaging ? (
-                      <ScanLine className="w-4 h-4 text-blue-600" />
-                    ) : (
-                      <FlaskConical className="w-4 h-4 text-blue-600" />
-                    )}
-                    {cat === 'Imaging' ? 'Imaging (X-Ray & Ultrasound)' : cat}
+                <div className="flex items-center justify-between pb-2 border-b border-surface-border">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-ink-primary flex items-center gap-1.5">
+                    <Icon className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                    {grp.title}
                   </span>
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-600">
-                    {isImaging ? 'Radiology' : 'Laboratory'}
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white border border-surface-border text-ink-secondary">
+                    {grp.deptLabel}
                   </span>
                 </div>
 
@@ -174,21 +176,21 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
                     return (
                       <label
                         key={item.id}
-                        className={`flex items-start gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                        className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
                           checked
-                            ? 'bg-blue-50/70 border-blue-300 text-slate-900'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                            ? 'bg-primary-50/70 border-primary-300 text-ink-primary'
+                            : 'bg-white border-surface-border text-ink-secondary hover:bg-surface-canvas'
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleId(item.id)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="mt-0.5 h-4 w-4 rounded border-surface-border-strong text-primary-600 focus:ring-primary-600"
                         />
                         <div>
                           <p className="font-semibold">{item.testName}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-[11px] text-ink-muted mt-0.5">
                             Ref: {item.referenceRange}
                           </p>
                         </div>
@@ -201,22 +203,44 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
           })}
         </div>
 
-        <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-xs font-medium text-slate-600">
+        {/* RQF-403-01 Clinical Instruction / Referral Question */}
+        <div className="rounded-xl border border-surface-border bg-white p-4 space-y-2">
+          <label
+            htmlFor="order-clinical-instruction"
+            className="block text-xs font-semibold text-ink-primary"
+          >
+            Clinical Instruction / Referral Question (RQF-403-01)
+          </label>
+          <p className="text-[11px] text-ink-muted">
+            Sent directly to the receiving department or specialist so they know what to examine for
+            — keep free of confidential diagnoses (RQP-403 §7.3).
+          </p>
+          <textarea
+            id="order-clinical-instruction"
+            rows={2}
+            value={clinicalInstruction}
+            onChange={(e) => setClinicalInstruction(e.target.value)}
+            placeholder="e.g. Deck Officer lookout candidate — record unaided/aided Snellen decimal acuity & D65 Ishihara screening..."
+            className="w-full rounded-xl border border-surface-border-strong px-3.5 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+          />
+        </div>
+
+        <div className="pt-3 border-t border-surface-border flex items-center justify-between">
+          <span className="text-xs font-medium text-ink-secondary">
             Selected: <strong>{selectedIds.length}</strong> test(s)
           </span>
           <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              className="px-4 py-2 rounded-xl border border-surface-border-strong text-xs font-semibold text-ink-secondary hover:bg-surface-canvas"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={selectedIds.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-navy-800 hover:bg-navy-900 disabled:opacity-50 text-white text-xs font-semibold shadow-sm"
             >
               <CheckSquare className="w-4 h-4" />
               <span>Dispatch Test Orders ({selectedIds.length})</span>

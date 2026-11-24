@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
@@ -8,13 +10,16 @@ import {
   formatDateShort,
   formatNowTimestamp,
   getPatientById,
+  UPLOADS_DIR,
 } from '../db.js';
 import type {
+  CieStandard,
   FitnessDetermination,
   IssuedCertificate,
   MedicationItem,
   PatientRecord,
   PatientStage,
+  RoleType,
   SeafarerRmpData,
 } from '../types.js';
 
@@ -64,14 +69,39 @@ const orderTestsSchema = z.object({
   tests: z
     .array(
       z.object({
-        category: z.enum(['Blood', 'Stool', 'Tissue', 'Imaging']),
+        category: z.enum(['Blood', 'Stool', 'Tissue', 'Imaging', 'Audiology', 'Vision']),
         testName: z.string().trim().min(2),
-        department: z.enum(['Laboratory', 'Radiology']),
+        department: z.enum(['Laboratory', 'Radiology', 'ENT & Audiology', 'Eye Clinic']),
         referenceRange: z.string().trim().optional().default(''),
+        clinicalInstruction: z.string().trim().optional().default(''),
       })
     )
     .min(1),
 });
+
+const attachmentUploadSchema = z.object({
+  fileName: z.string().trim().min(1, 'File name is required'),
+  mimeType: z.enum(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'], {
+    error: 'Only PDF, PNG, JPEG, or WebP reports are supported.',
+  }),
+  dataBase64: z.string().min(4, 'File content is empty'),
+});
+
+const ALLOWED_ORDER_DEPT: Partial<Record<RoleType, string>> = {
+  LAB: 'Laboratory',
+  RADIOLOGY: 'Radiology',
+  ENT: 'ENT & Audiology',
+  EYE: 'Eye Clinic',
+};
+
+function ensureOrderDepartmentAccess(role: RoleType, dept: string): string | null {
+  if (role === 'DOCTOR' || role === 'ADMIN') return null;
+  const expected = ALLOWED_ORDER_DEPT[role];
+  if (!expected || dept !== expected) {
+    return `${role} accounts can only access ${expected || 'assigned department'} orders.`;
+  }
+  return null;
+}
 
 function upsertTimeline(
   db: DatabaseSync,
@@ -399,20 +429,17 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
 
     const ts = formatNowTimestamp();
     const tests = parsed.data.tests;
-    const hasImaging = tests.some((t) => t.department === 'Radiology');
-    const hasLab = tests.some((t) => t.department === 'Laboratory');
+    const uniqueDepts = Array.from(new Set(tests.map((t) => t.department)));
     const locationLabel =
-      hasImaging && hasLab
-        ? 'Laboratory & Radiology'
-        : hasImaging
-        ? 'Radiology / X-Ray Suite'
-        : 'Laboratory';
+      uniqueDepts.length === 1
+        ? uniqueDepts[0]
+        : `Diagnostic Suites (${uniqueDepts.join(', ')})`;
 
     const insertOrder = db.prepare(
       `INSERT INTO diagnostic_orders (
         id, patient_id, record_no, patient_name, department, category, test_name,
-        ordered_by, ordered_at, status, reference_range
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)`
+        clinical_instruction, ordered_by, ordered_at, status, reference_range
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?)`
     );
 
     db.exec('BEGIN;');
@@ -427,6 +454,7 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
           t.department,
           t.category,
           t.testName,
+          t.clinicalInstruction || '',
           user.fullName,
           ts,
           t.referenceRange || ''
@@ -556,7 +584,7 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
   });
 
   app.patch('/api/orders/:orderId/draft', async (req, reply) => {
-    const user = requireAuth(db, req, reply, ['LAB', 'RADIOLOGY', 'ADMIN']);
+    const user = requireAuth(db, req, reply, ['LAB', 'RADIOLOGY', 'ENT', 'EYE', 'DOCTOR', 'ADMIN']);
     if (!user) return;
     const { orderId } = req.params as { orderId: string };
 
@@ -566,12 +594,8 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     if (!order) return reply.code(404).send({ error: 'Diagnostic order not found.' });
 
     const dept = String(order.department);
-    if (user.portalRole === 'LAB' && dept !== 'Laboratory') {
-      return reply.code(403).send({ error: 'Lab users can only edit Laboratory orders.' });
-    }
-    if (user.portalRole === 'RADIOLOGY' && dept !== 'Radiology') {
-      return reply.code(403).send({ error: 'Radiology users can only edit Radiology orders.' });
-    }
+    const deptErr = ensureOrderDepartmentAccess(user.portalRole, dept);
+    if (deptErr) return reply.code(403).send({ error: deptErr });
 
     const body = (req.body || {}) as { draftFindings?: string; scientistRemarks?: string };
     db.prepare(
@@ -594,7 +618,7 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
   });
 
   app.post('/api/orders/:orderId/publish', async (req, reply) => {
-    const user = requireAuth(db, req, reply, ['LAB', 'RADIOLOGY', 'ADMIN']);
+    const user = requireAuth(db, req, reply, ['LAB', 'RADIOLOGY', 'ENT', 'EYE', 'DOCTOR', 'ADMIN']);
     if (!user) return;
     const { orderId } = req.params as { orderId: string };
 
@@ -604,17 +628,30 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     if (!order) return reply.code(404).send({ error: 'Diagnostic order not found.' });
 
     const dept = String(order.department);
-    if (user.portalRole === 'LAB' && dept !== 'Laboratory') {
-      return reply.code(403).send({ error: 'Lab users can only publish Laboratory results.' });
-    }
-    if (user.portalRole === 'RADIOLOGY' && dept !== 'Radiology') {
-      return reply.code(403).send({ error: 'Radiology users can only publish Radiology results.' });
-    }
+    const deptErr = ensureOrderDepartmentAccess(user.portalRole, dept);
+    if (deptErr) return reply.code(403).send({ error: deptErr });
 
     const body = (req.body || {}) as {
       publishedResult?: string;
       referenceRange?: string;
       scientistRemarks?: string;
+      audiometry?: {
+        audiometryRight: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+        audiometryLeft: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+        speechClear: boolean;
+      };
+      vision?: {
+        distanceUnaided: { right: string; left: string; both: string };
+        distanceAided: { right: string; left: string; both: string };
+        visualAidsRequired: boolean;
+        nearVisionMet: boolean;
+        intermediateVisionMet: boolean;
+        visualFieldsNormal: boolean;
+        nightVisionNormal: boolean;
+        diplopiaAbsent: boolean;
+        colourVisionTestMethod: string;
+        colourVisionCie: CieStandard;
+      };
     };
     const ts = formatNowTimestamp();
 
@@ -636,6 +673,39 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
 
       const patientId = String(order.patient_id);
       const patient = getPatientById(db, patientId);
+
+      // Sync structured ENT / Eye delegated readings directly into RQF-603-01 for RMP review
+      if (patient?.rmp && (body.audiometry || body.vision)) {
+        const updatedVh = { ...patient.rmp.visionHearing, testedBy: user.fullName };
+        if (body.audiometry) {
+          updatedVh.audiometryRight = body.audiometry.audiometryRight;
+          updatedVh.audiometryLeft = body.audiometry.audiometryLeft;
+          updatedVh.speechClear = body.audiometry.speechClear;
+        }
+        if (body.vision) {
+          updatedVh.distanceUnaided = body.vision.distanceUnaided;
+          updatedVh.distanceAided = body.vision.distanceAided;
+          updatedVh.visualAidsRequired = body.vision.visualAidsRequired;
+          updatedVh.nearVisionMet = body.vision.nearVisionMet;
+          updatedVh.intermediateVisionMet = body.vision.intermediateVisionMet;
+          updatedVh.visualFieldsNormal = body.vision.visualFieldsNormal;
+          updatedVh.nightVisionNormal = body.vision.nightVisionNormal;
+          updatedVh.diplopiaAbsent = body.vision.diplopiaAbsent;
+          updatedVh.colourVisionTestMethod = body.vision.colourVisionTestMethod;
+          updatedVh.colourVisionCie = body.vision.colourVisionCie;
+          updatedVh.colourVisionLastDate = formatDateShort();
+          updatedVh.colourVisionReferred = body.vision.colourVisionCie === 'Pending specialist';
+        }
+        const nextRmp: SeafarerRmpData = {
+          ...patient.rmp,
+          visionHearing: updatedVh,
+        };
+        db.prepare('UPDATE patients SET rmp_json = ? WHERE id = ?').run(
+          JSON.stringify(nextRmp),
+          patientId
+        );
+      }
+
       const allPublished = patient
         ? patient.orders.every((o) => o.id === orderId || o.status === 'Published')
         : true;
@@ -673,6 +743,83 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     }
 
     return { ok: true };
+  });
+
+  app.post('/api/orders/:orderId/attachment', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['LAB', 'RADIOLOGY', 'ENT', 'EYE', 'DOCTOR', 'ADMIN']);
+    if (!user) return;
+    const { orderId } = req.params as { orderId: string };
+
+    const order = db.prepare('SELECT * FROM diagnostic_orders WHERE id = ?').get(orderId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!order) return reply.code(404).send({ error: 'Diagnostic order not found.' });
+
+    const deptErr = ensureOrderDepartmentAccess(user.portalRole, String(order.department));
+    if (deptErr) return reply.code(403).send({ error: deptErr });
+
+    const parsed = attachmentUploadSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid attachment' });
+    }
+
+    const { fileName, mimeType, dataBase64 } = parsed.data;
+    const rawB64 = dataBase64.includes(',') ? dataBase64.split(',')[1] || '' : dataBase64;
+    const buffer = Buffer.from(rawB64, 'base64');
+    if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) {
+      return reply
+        .code(400)
+        .send({ error: 'Attachment must be non-empty and under 10 MB.' });
+    }
+
+    const originalName = path.basename(fileName);
+    const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const diskPath = path.join(UPLOADS_DIR, `${orderId}_${Date.now()}_${safeName}`);
+
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    fs.writeFileSync(diskPath, buffer);
+
+    db.prepare(
+      `UPDATE diagnostic_orders SET attachment_name = ?, attachment_mime = ?, attachment_path = ? WHERE id = ?`
+    ).run(originalName, mimeType, diskPath, orderId);
+
+    appendAudit(
+      db,
+      user.fullName,
+      user.roleTitle,
+      'REPORT_FILE_UPLOADED',
+      String(order.record_no),
+      `Uploaded diagnostic attachment "${originalName}" for ${String(order.test_name)}.`
+    );
+
+    return { ok: true, attachmentName: originalName };
+  });
+
+  app.get('/api/orders/:orderId/attachment', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['ADMIN', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']);
+    if (!user) return;
+    const { orderId } = req.params as { orderId: string };
+
+    const order = db.prepare('SELECT * FROM diagnostic_orders WHERE id = ?').get(orderId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!order) return reply.code(404).send({ error: 'Diagnostic order not found.' });
+
+    const deptErr = ensureOrderDepartmentAccess(user.portalRole, String(order.department));
+    if (deptErr) return reply.code(403).send({ error: deptErr });
+
+    const filePath = order.attachment_path ? String(order.attachment_path) : '';
+    const fileName = order.attachment_name ? String(order.attachment_name) : 'report';
+    const mimeType = order.attachment_mime ? String(order.attachment_mime) : 'application/octet-stream';
+
+    if (!filePath || !fs.existsSync(filePath)) {
+      return reply.code(404).send({ error: 'Report file not found on disk.' });
+    }
+
+    const fileBuffer = fs.readFileSync(filePath);
+    reply.header('Content-Type', mimeType);
+    reply.header('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
+    return reply.send(fileBuffer);
   });
 
   app.put('/api/patients/:id/vision-hearing', async (req, reply) => {

@@ -8,7 +8,7 @@ const createUserSchema = z.object({
   fullName: z.string().trim().min(2, 'Full name is required'),
   email: z.string().trim().email('Valid email address is required'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  portalRole: z.enum(['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY', 'NIMASA']),
+  portalRole: z.enum(['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE', 'NIMASA']),
   roleTitle: z.string().trim().min(2, 'System role title is required'),
   department: z.string().trim().min(2, 'Department or organization is required'),
   licenseNo: z.string().trim().optional(),

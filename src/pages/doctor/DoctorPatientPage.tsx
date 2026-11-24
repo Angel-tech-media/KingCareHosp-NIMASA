@@ -24,6 +24,7 @@ export const DoctorPatientPage: React.FC = () => {
     completeFirstAssessment,
     orderTests,
     recordSecondAssessment,
+    uploadOrderAttachment,
   } = useHospital();
 
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
@@ -74,14 +75,18 @@ export const DoctorPatientPage: React.FC = () => {
     showToast('Confidential examination note saved and stamped.');
   };
 
-  const handleConfirmTestOrders = (selectedTests: SampleTestCatalogItem[]) => {
-    orderTests(
+  const handleConfirmTestOrders = async (
+    selectedTests: SampleTestCatalogItem[],
+    clinicalInstruction: string
+  ) => {
+    await orderTests(
       patient.id,
       selectedTests.map((t) => ({
         category: t.category,
         testName: t.testName,
         department: t.department,
         referenceRange: t.referenceRange,
+        clinicalInstruction,
       }))
     );
     setActiveTab('INVESTIGATIONS');
@@ -280,23 +285,35 @@ export const DoctorPatientPage: React.FC = () => {
                 All required investigations must be published before a medical certificate can be issued (30-day cap).
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/eye"
+                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+              >
+                Eye Clinic
+              </Link>
+              <Link
+                to="/ent"
+                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+              >
+                ENT &amp; Audiology
+              </Link>
               <Link
                 to="/lab"
-                className="h-8 px-3 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle inline-flex items-center text-xs font-medium text-ink-secondary"
+                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
               >
                 Laboratory
               </Link>
               <Link
                 to="/radiology"
-                className="h-8 px-3 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle inline-flex items-center text-xs font-medium text-ink-secondary"
+                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
               >
                 Radiology
               </Link>
               <button
                 type="button"
                 onClick={() => setIsOrderModalOpen(true)}
-                className="h-8 px-3 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold"
+                className="h-8 px-3.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold"
               >
                 + Order Tests
               </button>
@@ -334,8 +351,15 @@ export const DoctorPatientPage: React.FC = () => {
                     </span>
                   </div>
 
+                  {ord.clinicalInstruction && (
+                    <div className="px-3.5 py-2.5 rounded-xl bg-primary-50/60 border border-primary-100 text-xs text-ink-secondary">
+                      <strong className="text-navy-800">Instruction (RQF-403-01):</strong>{' '}
+                      {ord.clinicalInstruction}
+                    </div>
+                  )}
+
                   {ord.status === 'Published' ? (
-                    <div className="p-3.5 rounded bg-surface-canvas border border-surface-border text-xs space-y-1.5">
+                    <div className="p-3.5 rounded-xl bg-surface-canvas border border-surface-border text-xs space-y-1.5">
                       <div className="font-medium text-ink-primary">
                         {ord.publishedResult}
                       </div>
@@ -352,6 +376,45 @@ export const DoctorPatientPage: React.FC = () => {
                       Ordered {ord.orderedAt} — awaiting publication from {ord.department}.
                     </div>
                   )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                    {ord.attachmentName ? (
+                      <a
+                        href={`/api/orders/${ord.id}/attachment`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-medium text-primary-700 hover:underline"
+                      >
+                        <span>View Uploaded Report ({ord.attachmentName})</span>
+                      </a>
+                    ) : (
+                      <span className="text-[11px] text-ink-muted">No report file attached</span>
+                    )}
+
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-medium text-ink-secondary cursor-pointer">
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          if (!file) return;
+                          try {
+                            await uploadOrderAttachment(ord.id, file);
+                            showToast(`Attached report "${file.name}" to ${ord.testName}.`);
+                          } catch (err) {
+                            showToast(
+                              err instanceof Error ? err.message : 'Failed to upload attachment.'
+                            );
+                          }
+                        }}
+                      />
+                      <span>
+                        {ord.attachmentName ? 'Replace Report (PDF/Image)' : 'Upload External / Scanned Report'}
+                      </span>
+                    </label>
+                  </div>
                 </div>
               ))}
             </div>

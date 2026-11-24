@@ -28,6 +28,7 @@ import type {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const DB_PATH = path.join(__dirname, 'data', 'kingscare.db');
+export const UPLOADS_DIR = path.join(__dirname, 'data', 'uploads');
 
 export function formatDateShort(date = new Date()): string {
   return date.toLocaleDateString('en-GB', {
@@ -56,6 +57,7 @@ export function calculateAgeYears(dobIso: string): number {
 
 export function openDatabase(customPath = DB_PATH): DatabaseSync {
   fs.mkdirSync(path.dirname(customPath), { recursive: true });
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   const db = new DatabaseSync(customPath);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec('PRAGMA foreign_keys = ON;');
@@ -200,6 +202,10 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
       department TEXT NOT NULL,
       category TEXT NOT NULL,
       test_name TEXT NOT NULL,
+      clinical_instruction TEXT,
+      attachment_name TEXT,
+      attachment_mime TEXT,
+      attachment_path TEXT,
       ordered_by TEXT NOT NULL,
       ordered_at TEXT NOT NULL,
       status TEXT NOT NULL,
@@ -251,6 +257,22 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
       details TEXT NOT NULL
     );
   `);
+
+  // Idempotent column migrations for existing databases
+  const orderCols = (
+    db.prepare('PRAGMA table_info(diagnostic_orders)').all() as { name: string }[]
+  ).map((c) => c.name);
+  const missingCols: [string, string][] = [
+    ['clinical_instruction', 'TEXT'],
+    ['attachment_name', 'TEXT'],
+    ['attachment_mime', 'TEXT'],
+    ['attachment_path', 'TEXT'],
+  ];
+  for (const [col, colType] of missingCols) {
+    if (!orderCols.includes(col)) {
+      db.exec(`ALTER TABLE diagnostic_orders ADD COLUMN ${col} ${colType};`);
+    }
+  }
 
   ensureBaseStructure(db);
   return db;
@@ -430,9 +452,12 @@ export function getPatientById(db: DatabaseSync, id: string): PatientRecord | nu
     patientId: String(o.patient_id),
     recordNo: String(o.record_no),
     patientName: String(o.patient_name),
-    department: String(o.department) as 'Laboratory' | 'Radiology',
+    department: String(o.department) as DiagnosticOrder['department'],
     category: String(o.category) as DiagnosticOrder['category'],
     testName: String(o.test_name),
+    clinicalInstruction: o.clinical_instruction ? String(o.clinical_instruction) : undefined,
+    attachmentName: o.attachment_name ? String(o.attachment_name) : undefined,
+    attachmentMime: o.attachment_mime ? String(o.attachment_mime) : undefined,
     orderedBy: String(o.ordered_by),
     orderedAt: String(o.ordered_at),
     status: String(o.status) as DiagnosticOrder['status'],
@@ -505,6 +530,9 @@ export function getPatientById(db: DatabaseSync, id: string): PatientRecord | nu
 function redactForNimasa(p: PatientRecord): PatientRecord {
   const safeOrders: DiagnosticOrder[] = p.orders.map((o) => ({
     ...o,
+    clinicalInstruction: undefined,
+    attachmentName: undefined,
+    attachmentMime: undefined,
     draftFindings: undefined,
     publishedResult: o.status === 'Published' ? 'Completed (clinical result restricted under QA-P-808)' : undefined,
     scientistRemarks: undefined,
@@ -533,6 +561,37 @@ function redactForNimasa(p: PatientRecord): PatientRecord {
     medications: [],
     dischargeSummary: undefined,
     orders: safeOrders,
+    rmp: safeRmp,
+  };
+}
+
+const DEPT_BY_ROLE: Partial<Record<RoleType, DiagnosticOrder['department']>> = {
+  LAB: 'Laboratory',
+  RADIOLOGY: 'Radiology',
+  ENT: 'ENT & Audiology',
+  EYE: 'Eye Clinic',
+};
+
+function redactForDiagnosticDept(p: PatientRecord, role: RoleType): PatientRecord {
+  const allowedDept = DEPT_BY_ROLE[role];
+  const deptOrders = allowedDept ? p.orders.filter((o) => o.department === allowedDept) : p.orders;
+
+  const safeRmp: SeafarerRmpData | undefined = p.rmp
+    ? {
+        ...p.rmp,
+        determinationBasis: undefined,
+        limitationText: undefined,
+      }
+    : undefined;
+
+  return {
+    ...p,
+    firstAssessmentSummary: undefined,
+    firstAssessmentFullNote: undefined,
+    secondAssessmentNote: undefined,
+    medications: [],
+    dischargeSummary: undefined,
+    orders: deptOrders,
     rmp: safeRmp,
   };
 }
@@ -650,6 +709,13 @@ export function getFullBootstrap(db: DatabaseSync, currentUser: AuthUser) {
     patients = patients
       .filter((p) => p.nimasaMember && p.consentToShareWithNimasa)
       .map(redactForNimasa);
+  } else if (
+    currentUser.portalRole === 'LAB' ||
+    currentUser.portalRole === 'RADIOLOGY' ||
+    currentUser.portalRole === 'ENT' ||
+    currentUser.portalRole === 'EYE'
+  ) {
+    patients = patients.map((p) => redactForDiagnosticDept(p, currentUser.portalRole));
   }
 
   const stockRows = db

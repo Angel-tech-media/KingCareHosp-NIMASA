@@ -45,10 +45,31 @@ export interface NewPatientInput {
 }
 
 export interface NewOrderTestItem {
-  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging';
+  category: 'Blood' | 'Stool' | 'Tissue' | 'Imaging' | 'Audiology' | 'Vision';
   testName: string;
-  department: 'Laboratory' | 'Radiology';
+  department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic';
   referenceRange: string;
+  clinicalInstruction?: string;
+}
+
+export interface DiagnosticStructuredPayload {
+  audiometry?: {
+    audiometryRight: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+    audiometryLeft: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+    speechClear: boolean;
+  };
+  vision?: {
+    distanceUnaided: { right: string; left: string; both: string };
+    distanceAided: { right: string; left: string; both: string };
+    visualAidsRequired: boolean;
+    nearVisionMet: boolean;
+    intermediateVisionMet: boolean;
+    visualFieldsNormal: boolean;
+    nightVisionNormal: boolean;
+    diplopiaAbsent: boolean;
+    colourVisionTestMethod: string;
+    colourVisionCie: VisionHearingRecord['colourVisionCie'];
+  };
 }
 
 export interface InitialSetupInput {
@@ -232,8 +253,10 @@ interface HospitalContextValue {
     publishedResult: string,
     referenceRange: string,
     scientistRemarks: string,
-    department: 'Laboratory' | 'Radiology'
+    department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic',
+    structuredData?: DiagnosticStructuredPayload
   ) => Promise<void>;
+  uploadOrderAttachment: (orderId: string, file: File) => Promise<void>;
   recordSecondAssessment: (patientId: string, note: string) => Promise<void>;
   addMedication: (
     patientId: string,
@@ -575,11 +598,36 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     publishedResult: string,
     referenceRange: string,
     scientistRemarks: string,
-    _department: 'Laboratory' | 'Radiology'
+    _department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic',
+    structuredData?: DiagnosticStructuredPayload
   ) => {
     await apiRequest(`/api/orders/${orderId}/publish`, {
       method: 'POST',
-      body: JSON.stringify({ publishedResult, referenceRange, scientistRemarks }),
+      body: JSON.stringify({
+        publishedResult,
+        referenceRange,
+        scientistRemarks,
+        ...(structuredData?.audiometry ? { audiometry: structuredData.audiometry } : {}),
+        ...(structuredData?.vision ? { vision: structuredData.vision } : {}),
+      }),
+    });
+    await refreshBootstrap();
+  };
+
+  const uploadOrderAttachment = async (orderId: string, file: File) => {
+    const dataBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read selected file.'));
+      reader.readAsDataURL(file);
+    });
+    await apiRequest(`/api/orders/${orderId}/attachment`, {
+      method: 'POST',
+      body: JSON.stringify({
+        fileName: file.name,
+        mimeType: file.type || 'application/pdf',
+        dataBase64,
+      }),
     });
     await refreshBootstrap();
   };
@@ -743,6 +791,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         admitPatient,
         saveOrderDraft,
         publishOrderResult,
+        uploadOrderAttachment,
         recordSecondAssessment,
         addMedication,
         dischargePatient,
