@@ -81,15 +81,16 @@ export const LoginPage: React.FC = () => {
       <div className="max-w-2xl mx-auto text-center mb-10 sm:mb-12">
         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-card text-ink-secondary border border-surface-border text-xs font-medium mb-4 shadow-card">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-          Every step stamped with who and when
+          STCW Regulation I/9 · NIMASA Series 800 Quality Standards System
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-ink-primary tracking-tight">
-          Sign in to Kingscare
+          Kingscare RMP Certification Portal
         </h1>
         <p className="text-base text-ink-muted mt-3">
-          Follow each NIMASA member from the front desk to discharge. Choose your
-          portal below, or use <span className="font-semibold text-ink-secondary">View as</span> in
-          the demo bar to jump between roles.
+          Recognized Medical Practitioner system for seafarer medical fitness examinations,
+          <span className="font-mono text-sm text-ink-secondary"> QAF-805-01 </span>
+          certification, and NIMASA regulatory oversight. Use{' '}
+          <span className="font-semibold text-ink-secondary">View as</span> in the demo bar to jump between roles.
         </p>
       </div>
 

@@ -56,6 +56,152 @@ export interface MedicationItem {
   prescribedAt: string;
 }
 
+export type SeafarerCategory =
+  | 'Deck (Master / Officer / Lookout)'
+  | 'Engine / Electro-Technical'
+  | 'GMDSS Radio Operator'
+  | 'Catering / Other';
+
+export type IdDocumentType =
+  | 'International Passport'
+  | 'NIN National ID'
+  | "Seafarer's Identity Document"
+  | 'Discharge Book';
+
+export type FitnessDetermination =
+  | 'Pending'
+  | 'Fit'
+  | 'Fit with limitation'
+  | 'Not fit';
+
+export type CieStandard =
+  | 'CIE 1'
+  | 'CIE 2'
+  | 'CIE 3'
+  | 'Not met'
+  | 'Pending specialist';
+
+export interface VisionHearingRecord {
+  distanceUnaided: { right: string; left: string; both: string };
+  distanceAided: { right: string; left: string; both: string };
+  visualAidsRequired: boolean;
+  nearVisionMet: boolean;
+  intermediateVisionMet: boolean;
+  visualFieldsNormal: boolean;
+  nightVisionNormal: boolean;
+  diplopiaAbsent: boolean;
+  colourVisionLastDate: string;
+  colourVisionTestMethod: string;
+  colourVisionCie: CieStandard;
+  colourVisionReferred: boolean;
+  audiometryRight: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+  audiometryLeft: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
+  unaidedHearingSatisfactory: boolean;
+  speechClear: boolean;
+  testedBy?: string;
+}
+
+export interface StatutoryCriteriaCheck {
+  physicalCapabilityBasicTraining: boolean; // A-I/9.2.1
+  hearingAndSpeechAdequate: boolean; // A-I/9.2.2
+  noConditionPreventingDuties: boolean; // A-I/9.2.3
+  noConditionAggravatedBySea: boolean; // A-I/9.2.4
+  noImpairingMedication: boolean; // A-I/9.2.5
+  fitForLookout: boolean; // A-I/9.7.3.6
+}
+
+export interface RightOfReviewNotice {
+  issuedAt: string;
+  seafarerSigned: boolean;
+  reviewRequested?: boolean;
+  recordsReleasedAt?: string;
+  refereeOutcome?: 'Pending' | 'Confirmed' | 'Varied' | 'Set aside';
+}
+
+export interface IssuedCertificate {
+  certificateNo: string; // QAF-805-01 serial
+  supplementNo: string; // certificateNo + "-S" (RQF-701-01)
+  examinationDate: string;
+  issueDate: string;
+  expiryDate: string;
+  maxValidityYears: 1 | 2;
+  determination: 'Fit' | 'Fit with limitation';
+  limitation?: string;
+  fitForLookout: boolean;
+  visualAidsRequired: boolean;
+  unaidedHearingSatisfactory: boolean;
+  colourVisionDate: string;
+  practitionerName: string;
+  practitionerMdcn: string;
+  secondCheckerName: string;
+  seafarerSigned: boolean;
+}
+
+export interface SeafarerRmpData {
+  nationality: string;
+  idType: IdDocumentType;
+  idNumber: string;
+  idVerifiedOriginal: boolean;
+  photoCaptured: boolean;
+  isUnder18: boolean;
+  previousCertNo?: string;
+  previousColourVisionDate?: string;
+  category: SeafarerCategory;
+  lookoutRequired: boolean;
+  specialDuties: string[];
+  entryExam: boolean;
+  healthDeclarationSigned: boolean;
+  priorityBasis?: 'None' | 'Voyage Extension (Reg. I/9.6)' | 'NIMASA Urgent Permission (Reg. I/9.7)';
+  visionHearing: VisionHearingRecord;
+  statutoryCriteria: StatutoryCriteriaCheck;
+  determination: FitnessDetermination;
+  determinationBasis?: string;
+  limitationText?: string;
+  rightOfReview?: RightOfReviewNotice;
+  issuedCertificate?: IssuedCertificate;
+}
+
+export interface CertificateStockItem {
+  serialNo: string;
+  status: 'In Cabinet' | 'Issued to RMP' | 'Used' | 'Spoiled';
+  assignedTo?: string;
+  recordNo?: string;
+  seafarerName?: string;
+  updatedAt: string;
+  note?: string;
+}
+
+export interface DailyEquipmentCheckState {
+  date: string;
+  checkedBy: string;
+  checkedAt: string;
+  items: {
+    id: string;
+    label: string;
+    department: string;
+    passed: boolean;
+  }[];
+}
+
+export interface SessionRecognitionCheck {
+  date: string;
+  practitionerName: string;
+  mdcnNo: string;
+  onAgencyRegister: boolean;
+  premisesInScope: boolean;
+  licenceValid: boolean;
+  confirmedAt?: string;
+}
+
+export interface VerificationEnquiry {
+  id: string;
+  timestamp: string;
+  enquirer: string;
+  certificateNo: string;
+  result: 'Issued' | 'No record';
+  outcomeSummary: string;
+}
+
 export interface PatientRecord {
   id: string;
   recordNo: string;
@@ -88,6 +234,7 @@ export interface PatientRecord {
   dischargeSummary?: string;
   timeline: StageHistoryEntry[];
   orders: DiagnosticOrder[];
+  rmp?: SeafarerRmpData;
 }
 
 export interface DepartmentStaff {

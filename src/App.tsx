@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { NimasaDashboard } from './pages/nimasa/NimasaDashboard';
 import { NimasaPatientStage } from './pages/nimasa/NimasaPatientStage';
 import { NimasaReports } from './pages/nimasa/NimasaReports';
+import { NimasaCompliancePage } from './pages/nimasa/NimasaCompliancePage';
 import { FrontDeskPage } from './pages/frontdesk/FrontDeskPage';
 import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
 import { DoctorPatientPage } from './pages/doctor/DoctorPatientPage';
@@ -13,6 +14,8 @@ import { DiagnosticsPage } from './pages/diagnostics/DiagnosticsPage';
 import { AdminMasterFile } from './pages/admin/AdminMasterFile';
 import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 import { AdminAuditLogPage } from './pages/admin/AdminAuditLogPage';
+import { AdminQssCompliancePage } from './pages/admin/AdminQssCompliancePage';
+import { AdminGovernancePage } from './pages/admin/AdminGovernancePage';
 
 export const App: React.FC = () => {
   return (
@@ -30,6 +33,7 @@ export const App: React.FC = () => {
               element={<NimasaPatientStage />}
             />
             <Route path="/nimasa/reports" element={<NimasaReports />} />
+            <Route path="/nimasa/compliance" element={<NimasaCompliancePage />} />
 
             {/* Hospital: Front Desk */}
             <Route path="/front-desk" element={<FrontDeskPage />} />
@@ -53,6 +57,8 @@ export const App: React.FC = () => {
 
             {/* Hospital: Admin */}
             <Route path="/admin" element={<AdminMasterFile />} />
+            <Route path="/admin/qss" element={<AdminQssCompliancePage />} />
+            <Route path="/admin/governance" element={<AdminGovernancePage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/audit" element={<AdminAuditLogPage />} />
 

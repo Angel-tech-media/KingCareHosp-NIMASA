@@ -126,14 +126,17 @@ const inferRoleFromPath = (path: string, fallback: RoleType): RoleKey => {
 };
 
 const getPageTitle = (path: string): { section: string; title: string } => {
-  if (path.startsWith('/nimasa/patients')) return { section: 'NIMASA', title: 'Patient journey' };
+  if (path.startsWith('/nimasa/patients')) return { section: 'NIMASA', title: 'Seafarer journey' };
+  if (path.startsWith('/nimasa/compliance')) return { section: 'NIMASA', title: 'Verification & returns' };
   if (path.startsWith('/nimasa/reports')) return { section: 'NIMASA', title: 'Reports' };
   if (path.startsWith('/nimasa')) return { section: 'NIMASA', title: 'Dashboard' };
-  if (path.startsWith('/front-desk')) return { section: 'Hospital', title: 'Front desk' };
-  if (path.startsWith('/doctor/patients')) return { section: 'Doctor', title: 'Patient record' };
-  if (path.startsWith('/doctor')) return { section: 'Hospital', title: 'My patients' };
+  if (path.startsWith('/front-desk')) return { section: 'Hospital', title: 'Reception & identity gate' };
+  if (path.startsWith('/doctor/patients')) return { section: 'RMP Doctor', title: 'Seafarer exam & certificate' };
+  if (path.startsWith('/doctor')) return { section: 'Hospital', title: 'My seafarers' };
   if (path.startsWith('/lab')) return { section: 'Hospital', title: 'Laboratory' };
   if (path.startsWith('/radiology')) return { section: 'Hospital', title: 'Radiology' };
+  if (path.startsWith('/admin/qss')) return { section: 'Admin', title: 'QSS compliance & stock' };
+  if (path.startsWith('/admin/governance')) return { section: 'Admin', title: 'Audit, CAPA & risks' };
   if (path.startsWith('/admin/users')) return { section: 'Admin', title: 'Users & roles' };
   if (path.startsWith('/admin/audit')) return { section: 'Admin', title: 'Audit log' };
   if (path.startsWith('/admin')) return { section: 'Admin', title: 'Master file' };
@@ -300,6 +303,12 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
               isActive: (p) => p === '/nimasa' || p.startsWith('/nimasa/patients'),
             },
             {
+              to: '/nimasa/compliance',
+              label: 'Verify & returns',
+              icon: ShieldCheck,
+              isActive: (p) => p.startsWith('/nimasa/compliance'),
+            },
+            {
               to: '/nimasa/reports',
               label: 'Reports',
               icon: BarChart3,
@@ -315,6 +324,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           title: 'Administration',
           items: [
             { to: '/admin', label: 'Master file', icon: Building2, isActive: (p) => p === '/admin' },
+            { to: '/admin/qss', label: 'QSS & stock', icon: ShieldCheck, isActive: (p) => p.startsWith('/admin/qss') },
+            { to: '/admin/governance', label: 'Audit, CAPA & risks', icon: ClipboardList, isActive: (p) => p.startsWith('/admin/governance') },
             { to: '/admin/users', label: 'Users & roles', icon: Users, isActive: (p) => p.startsWith('/admin/users') },
             {
               to: '/admin/audit',
