@@ -21,6 +21,7 @@ export const AdminQssCompliancePage: React.FC = () => {
     patients,
     dailyEquipmentCheck,
     certificateStock,
+    demoToolsEnabled,
     updatePractice,
     toggleEquipmentCheckItem,
     receiveStockBatch,
@@ -193,14 +194,16 @@ export const AdminQssCompliancePage: React.FC = () => {
         title="Recognition & Stock"
         subtitle="NIMASA Schedule of Recognition, live QSS performance indicators, daily equipment checks, and certificate stock."
         actions={
-          <button
-            type="button"
-            onClick={() => setDbToolsOpen(true)}
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card transition-colors"
-          >
-            <Database className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
-            <span>System Setup</span>
-          </button>
+          demoToolsEnabled ? (
+            <button
+              type="button"
+              onClick={() => setDbToolsOpen(true)}
+              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card transition-colors"
+            >
+              <Database className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
+              <span>System Setup</span>
+            </button>
+          ) : undefined
         }
       />
 
@@ -775,49 +778,51 @@ export const AdminQssCompliancePage: React.FC = () => {
       </SlideOver>
 
       {/* Drawer: Practice Environment */}
-      <SlideOver
-        isOpen={dbToolsOpen}
-        onClose={() => setDbToolsOpen(false)}
-        title="Practice Environment"
-        subtitle="Load sample demonstration records or reset for fresh onboarding"
-      >
-        <div className="space-y-5 text-xs">
-          <div className="p-4 rounded-xl bg-surface-canvas border border-surface-border space-y-3">
-            <div className="font-semibold text-sm text-ink-primary">Load Sample Clinic Data</div>
-            <p className="text-ink-secondary leading-relaxed">
-              Loads 6 sample role accounts (password{' '}
-              <code className="font-mono font-semibold">Kingscare@2026</code>), 5 calibrated devices, 12
-              blank serials, and 6 seafarer records for demonstration, then returns to Sign In.
-            </p>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleLoadSample}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white font-semibold"
-            >
-              <Database className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Load Sample Data</span>
-            </button>
-          </div>
+      {demoToolsEnabled && (
+        <SlideOver
+          isOpen={dbToolsOpen}
+          onClose={() => setDbToolsOpen(false)}
+          title="Practice Environment"
+          subtitle="Load sample demonstration records or reset for fresh onboarding"
+        >
+          <div className="space-y-5 text-xs">
+            <div className="p-4 rounded-xl bg-surface-canvas border border-surface-border space-y-3">
+              <div className="font-semibold text-sm text-ink-primary">Load Sample Clinic Data</div>
+              <p className="text-ink-secondary leading-relaxed">
+                Loads 6 sample role accounts (password{' '}
+                <code className="font-mono font-semibold">Kingscare@2026</code>), 5 calibrated devices, 12
+                blank serials, and 6 seafarer records for demonstration, then returns to Sign In.
+              </p>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleLoadSample}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white font-semibold"
+              >
+                <Database className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Load Sample Data</span>
+              </button>
+            </div>
 
-          <div className="p-4 rounded-xl bg-crimson-50/70 border border-crimson-100 space-y-3">
-            <div className="font-semibold text-sm text-crimson-700">Reset to Fresh Installation</div>
-            <p className="text-ink-secondary leading-relaxed">
-              Clears all users, equipment, seafarers, and audit entries so the portal restarts on the
-              First-Time Practice &amp; Admin Setup wizard.
-            </p>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={handleResetClean}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-crimson-500 hover:bg-crimson-600 text-white font-semibold"
-            >
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Reset Practice</span>
-            </button>
+            <div className="p-4 rounded-xl bg-crimson-50/70 border border-crimson-100 space-y-3">
+              <div className="font-semibold text-sm text-crimson-700">Reset to Fresh Installation</div>
+              <p className="text-ink-secondary leading-relaxed">
+                Clears all users, equipment, seafarers, and audit entries so the portal restarts on the
+                First-Time Practice &amp; Admin Setup wizard.
+              </p>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={handleResetClean}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-crimson-500 hover:bg-crimson-600 text-white font-semibold"
+              >
+                <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Reset Practice</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </SlideOver>
+        </SlideOver>
+      )}
     </div>
   );
 };

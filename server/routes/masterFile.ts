@@ -300,6 +300,20 @@ export function registerMasterFileRoutes(app: FastifyInstance, db: DatabaseSync)
       | undefined;
     if (!existing) return reply.code(404).send({ error: 'Equipment item not found.' });
 
+    const deptId = String(existing.department_id);
+    if (user.portalRole === 'LAB' && deptId !== 'lab') {
+      return reply.code(403).send({ error: 'Lab users can only toggle Laboratory equipment checks.' });
+    }
+    if (user.portalRole === 'RADIOLOGY' && deptId !== 'radiology') {
+      return reply.code(403).send({ error: 'Radiology users can only toggle Radiology equipment checks.' });
+    }
+    if (user.portalRole === 'ENT' && deptId !== 'ent') {
+      return reply.code(403).send({ error: 'ENT users can only toggle ENT & Audiology equipment checks.' });
+    }
+    if (user.portalRole === 'EYE' && deptId !== 'eye') {
+      return reply.code(403).send({ error: 'Eye Clinic users can only toggle Eye Clinic equipment checks.' });
+    }
+
     const currentPassed = Boolean(existing.daily_check_passed);
     const nextPassed = currentPassed ? 0 : 1;
     const currentStatus = String(existing.status);

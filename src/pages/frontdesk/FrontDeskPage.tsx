@@ -8,7 +8,8 @@ import { RegisterSeafarerDrawer } from './RegisterSeafarerDrawer';
 type ArrivalsFilter = 'ALL' | 'WAITING' | 'DISPATCHED';
 
 export const FrontDeskPage: React.FC = () => {
-  const { patients, sendToDoctor } = useHospital();
+  const { patients, sendToDoctor, activeRole } = useHospital();
+  const canOpenDoctorChart = activeRole === 'ADMIN' || activeRole === 'DOCTOR';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusTab, setStatusTab] = useState<ArrivalsFilter>('ALL');
@@ -190,13 +191,17 @@ export const FrontDeskPage: React.FC = () => {
                       <Send className="w-3.5 h-3.5" aria-hidden="true" />
                       <span>Send to RMP</span>
                     </button>
-                  ) : (
+                  ) : canOpenDoctorChart ? (
                     <Link
                       to={`/doctor/patients/${patient.recordNo}`}
                       className="inline-flex items-center h-8 px-3.5 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-medium text-ink-secondary transition-colors"
                     >
                       Open
                     </Link>
+                  ) : (
+                    <span className="inline-flex items-center h-7 px-2.5 rounded-full bg-surface-canvas border border-surface-border text-[11px] font-medium text-ink-muted">
+                      Dispatched
+                    </span>
                   )}
                 </div>
               </div>

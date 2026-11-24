@@ -12,8 +12,8 @@ import {
   getPatientById,
   UPLOADS_DIR,
 } from '../db.js';
+import { isPathInsideDir, verifyUploadedFileMagicBytes } from '../security.js';
 import type {
-  CieStandard,
   FitnessDetermination,
   IssuedCertificate,
   MedicationItem,
@@ -80,11 +80,133 @@ const orderTestsSchema = z.object({
 });
 
 const attachmentUploadSchema = z.object({
-  fileName: z.string().trim().min(1, 'File name is required'),
+  fileName: z.string().trim().min(1, 'File name is required').max(180),
   mimeType: z.enum(['application/pdf', 'image/png', 'image/jpeg', 'image/webp'], {
     error: 'Only PDF, PNG, JPEG, or WebP reports are supported.',
   }),
-  dataBase64: z.string().min(4, 'File content is empty'),
+  dataBase64: z.string().min(4, 'File content is empty').max(15 * 1024 * 1024),
+});
+
+const firstAssessmentSchema = z.object({
+  shortSummary: z.string().trim().max(400).optional(),
+  fullClinicalNote: z.string().trim().max(8000).optional(),
+});
+
+const secondAssessmentSchema = z.object({
+  note: z.string().trim().max(8000).optional(),
+});
+
+const admitSchema = z.object({
+  wardRoom: z.string().trim().min(2).max(120).optional(),
+});
+
+const medicationSchema = z.object({
+  name: z.string().trim().min(1, 'Medication name is required').max(160),
+  dosage: z.string().trim().min(1, 'Dosage is required').max(80),
+  frequency: z.string().trim().min(1, 'Frequency is required').max(80),
+  duration: z.string().trim().min(1, 'Duration is required').max(80),
+});
+
+const dischargeSchema = z.object({
+  dischargeSummary: z.string().trim().max(4000).optional(),
+});
+
+const orderDraftSchema = z.object({
+  draftFindings: z.string().max(10000).optional().default(''),
+  scientistRemarks: z.string().max(4000).optional(),
+});
+
+const dbLevelSchema = z.coerce.number().min(-10).max(120);
+const audiometryBandSchema = z.object({
+  hz500: dbLevelSchema,
+  hz1000: dbLevelSchema,
+  hz2000: dbLevelSchema,
+  hz3000: dbLevelSchema,
+});
+
+const acuityBandSchema = z.object({
+  right: z.string().trim().min(1).max(16),
+  left: z.string().trim().min(1).max(16),
+  both: z.string().trim().min(1).max(16),
+});
+
+const cieEnumSchema = z.enum([
+  'CIE 1',
+  'CIE 2',
+  'CIE 3',
+  'Not tested',
+  'Failed',
+  'Pending specialist',
+]);
+
+const orderPublishSchema = z.object({
+  publishedResult: z.string().trim().max(10000).optional().default(''),
+  referenceRange: z.string().trim().max(500).optional(),
+  scientistRemarks: z.string().trim().max(4000).optional().default(''),
+  audiometry: z
+    .object({
+      audiometryRight: audiometryBandSchema,
+      audiometryLeft: audiometryBandSchema,
+      speechClear: z.boolean(),
+    })
+    .optional(),
+  vision: z
+    .object({
+      distanceUnaided: acuityBandSchema,
+      distanceAided: acuityBandSchema,
+      visualAidsRequired: z.boolean(),
+      nearVisionMet: z.boolean(),
+      intermediateVisionMet: z.boolean(),
+      visualFieldsNormal: z.boolean(),
+      nightVisionNormal: z.boolean(),
+      diplopiaAbsent: z.boolean(),
+      colourVisionTestMethod: z.string().trim().min(1).max(200),
+      colourVisionCie: cieEnumSchema,
+    })
+    .optional(),
+});
+
+const visionHearingSchema = z.object({
+  distanceUnaided: acuityBandSchema,
+  distanceAided: acuityBandSchema,
+  visualAidsRequired: z.boolean(),
+  nearVisionMet: z.boolean(),
+  intermediateVisionMet: z.boolean(),
+  visualFieldsNormal: z.boolean(),
+  nightVisionNormal: z.boolean(),
+  diplopiaAbsent: z.boolean(),
+  colourVisionLastDate: z.string().trim().min(1).max(64),
+  colourVisionTestMethod: z.string().trim().min(1).max(200),
+  colourVisionCie: cieEnumSchema,
+  colourVisionReferred: z.boolean(),
+  audiometryRight: audiometryBandSchema,
+  audiometryLeft: audiometryBandSchema,
+  unaidedHearingSatisfactory: z.boolean(),
+  speechClear: z.boolean(),
+  testedBy: z.string().trim().max(120).optional(),
+});
+
+const statutoryCriteriaSchema = z.object({
+  physicalCapabilityBasicTraining: z.boolean(),
+  hearingAndSpeechAdequate: z.boolean(),
+  noConditionPreventingDuties: z.boolean(),
+  noConditionAggravatedBySea: z.boolean(),
+  noImpairingMedication: z.boolean(),
+  fitForLookout: z.boolean(),
+});
+
+const determinationSchema = z.object({
+  determination: z.enum(['Fit', 'Fit with limitation', 'Not fit']),
+  basis: z.string().trim().min(2, 'Clinical determination basis is required').max(4000),
+  limitationText: z.string().trim().max(1000).optional(),
+  reviewNoticeSigned: z.boolean().optional(),
+});
+
+const issueCertificateSchema = z.object({
+  serialNo: z.string().trim().min(3, 'Certificate serial number is required').max(64),
+  secondCheckerName: z.string().trim().min(2, 'Second checker name is required').max(120),
+  seafarerSigned: z.boolean(),
+  validityMonths: z.coerce.number().int().min(1).max(24).optional(),
 });
 
 const ALLOWED_ORDER_DEPT: Partial<Record<RoleType, string>> = {
@@ -148,7 +270,11 @@ function evaluateDeckLookoutBlock(rmp: SeafarerRmpData): boolean {
   return visionFailed || colourFailed;
 }
 
-export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): void {
+export function registerPatientRoutes(
+  app: FastifyInstance,
+  db: DatabaseSync,
+  uploadsDir = UPLOADS_DIR
+): void {
   app.post('/api/patients', async (req, reply) => {
     const user = requireAuth(db, req, reply, ['FRONT_DESK', 'ADMIN']);
     if (!user) return;
@@ -354,9 +480,12 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target) return reply.code(404).send({ error: 'Seafarer record not found.' });
 
-    const body = (req.body || {}) as { shortSummary?: string; fullClinicalNote?: string };
+    const parsed = firstAssessmentSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid assessment note' });
+    }
     const cleanSummary =
-      body.shortSummary?.trim() || 'First assessment complete; physician reviewing next clinical step.';
+      parsed.data.shortSummary?.trim() || 'First assessment complete; physician reviewing next clinical step.';
 
     if (!target.timeline.some((t) => t.stage === 'In assessment')) {
       upsertTimeline(db, id, 'In assessment', user.fullName, user.roleTitle, 'Initial consultation performed.');
@@ -367,7 +496,7 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
        SET current_stage = 'First assessment complete', current_location = 'Consultation Room 1',
            first_assessment_summary = ?, first_assessment_full_note = ?
        WHERE id = ?`
-    ).run(cleanSummary, body.fullClinicalNote || '', id);
+    ).run(cleanSummary, parsed.data.fullClinicalNote || '', id);
 
     upsertTimeline(db, id, 'First assessment complete', user.fullName, user.roleTitle, cleanSummary);
     appendAudit(
@@ -388,13 +517,16 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target) return reply.code(404).send({ error: 'Seafarer record not found.' });
 
-    const body = (req.body || {}) as { note?: string };
+    const parsed = secondAssessmentSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid review note' });
+    }
     db.prepare(
       `UPDATE patients
        SET current_stage = 'Second assessment', current_location = 'Consultation Room 1',
            second_assessment_note = ?
        WHERE id = ?`
-    ).run(body.note || '', id);
+    ).run(parsed.data.note || '', id);
 
     upsertTimeline(
       db,
@@ -502,8 +634,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target) return reply.code(404).send({ error: 'Record not found.' });
 
-    const body = (req.body || {}) as { wardRoom?: string };
-    const ward = body.wardRoom?.trim() || 'Executive Ward B - Bed 07';
+    const parsed = admitSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid admission ward' });
+    }
+    const ward = parsed.data.wardRoom?.trim() || 'Executive Ward B - Bed 07';
 
     db.prepare(
       `UPDATE patients SET current_stage = 'Admitted', is_admitted = 1, ward_room = ?, current_location = ? WHERE id = ?`
@@ -521,18 +656,17 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target) return reply.code(404).send({ error: 'Record not found.' });
 
-    const med = (req.body || {}) as {
-      name: string;
-      dosage: string;
-      frequency: string;
-      duration: string;
-    };
+    const parsed = medicationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid medication fields' });
+    }
+    const med = parsed.data;
     const nextMed: MedicationItem = {
       id: `med-${Date.now()}`,
-      name: med.name || '',
-      dosage: med.dosage || '',
-      frequency: med.frequency || '',
-      duration: med.duration || '',
+      name: med.name,
+      dosage: med.dosage,
+      frequency: med.frequency,
+      duration: med.duration,
       prescribedBy: user.fullName,
       prescribedAt: formatNowTimestamp(),
     };
@@ -556,9 +690,12 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target) return reply.code(404).send({ error: 'Record not found.' });
 
-    const body = (req.body || {}) as { dischargeSummary?: string };
+    const parsed = dischargeSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid discharge summary' });
+    }
     const cleanSummary =
-      body.dischargeSummary?.trim() || 'Clinically stable and discharged.';
+      parsed.data.dischargeSummary?.trim() || 'Clinically stable and discharged.';
 
     if (!target.timeline.some((t) => t.stage === 'Second assessment')) {
       upsertTimeline(
@@ -597,7 +734,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const deptErr = ensureOrderDepartmentAccess(user.portalRole, dept);
     if (deptErr) return reply.code(403).send({ error: deptErr });
 
-    const body = (req.body || {}) as { draftFindings?: string; scientistRemarks?: string };
+    const parsed = orderDraftSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid draft payload' });
+    }
+    const body = parsed.data;
     db.prepare(
       `UPDATE diagnostic_orders SET status = 'Draft', draft_findings = ?, scientist_remarks = ? WHERE id = ?`
     ).run(
@@ -631,28 +772,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const deptErr = ensureOrderDepartmentAccess(user.portalRole, dept);
     if (deptErr) return reply.code(403).send({ error: deptErr });
 
-    const body = (req.body || {}) as {
-      publishedResult?: string;
-      referenceRange?: string;
-      scientistRemarks?: string;
-      audiometry?: {
-        audiometryRight: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
-        audiometryLeft: { hz500: number; hz1000: number; hz2000: number; hz3000: number };
-        speechClear: boolean;
-      };
-      vision?: {
-        distanceUnaided: { right: string; left: string; both: string };
-        distanceAided: { right: string; left: string; both: string };
-        visualAidsRequired: boolean;
-        nearVisionMet: boolean;
-        intermediateVisionMet: boolean;
-        visualFieldsNormal: boolean;
-        nightVisionNormal: boolean;
-        diplopiaAbsent: boolean;
-        colourVisionTestMethod: string;
-        colourVisionCie: CieStandard;
-      };
-    };
+    const parsed = orderPublishSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid diagnostic result' });
+    }
+    const body = parsed.data;
     const ts = formatNowTimestamp();
 
     db.exec('BEGIN;');
@@ -772,11 +896,21 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
         .send({ error: 'Attachment must be non-empty and under 10 MB.' });
     }
 
+    if (!verifyUploadedFileMagicBytes(buffer, mimeType)) {
+      return reply
+        .code(400)
+        .send({ error: 'File contents do not match the declared PDF or image format.' });
+    }
+
     const originalName = path.basename(fileName);
     const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const diskPath = path.join(UPLOADS_DIR, `${orderId}_${Date.now()}_${safeName}`);
+    const safeOrderId = orderId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const diskPath = path.resolve(uploadsDir, `${safeOrderId}_${Date.now()}_${safeName}`);
+    if (!isPathInsideDir(diskPath, uploadsDir)) {
+      return reply.code(400).send({ error: 'Invalid upload destination path.' });
+    }
 
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    fs.mkdirSync(uploadsDir, { recursive: true });
     fs.writeFileSync(diskPath, buffer);
 
     db.prepare(
@@ -812,13 +946,26 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const fileName = order.attachment_name ? String(order.attachment_name) : 'report';
     const mimeType = order.attachment_mime ? String(order.attachment_mime) : 'application/octet-stream';
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    if (!filePath || !isPathInsideDir(filePath, uploadsDir)) {
+      return reply.code(403).send({ error: 'Invalid attachment path.' });
+    }
+
+    if (!fs.existsSync(filePath)) {
       return reply.code(404).send({ error: 'Report file not found on disk.' });
     }
 
     const fileBuffer = fs.readFileSync(filePath);
+    const safeHeaderFileName = fileName.replace(/[\r\n"\\/]/g, '_');
+    const csp =
+      mimeType === 'application/pdf'
+        ? "default-src 'none'; object-src 'self'; style-src 'unsafe-inline'"
+        : "default-src 'none'; img-src 'self'";
+
     reply.header('Content-Type', mimeType);
-    reply.header('Content-Disposition', `inline; filename="${fileName.replace(/"/g, '')}"`);
+    reply.header('Content-Disposition', `inline; filename="${safeHeaderFileName}"`);
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Cache-Control', 'private, no-store');
+    reply.header('Content-Security-Policy', csp);
     return reply.send(fileBuffer);
   });
 
@@ -829,7 +976,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target || !target.rmp) return reply.code(404).send({ error: 'Seafarer RMP record not found.' });
 
-    const vh = req.body as SeafarerRmpData['visionHearing'];
+    const parsed = visionHearingSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid vision/hearing record' });
+    }
+    const vh = parsed.data;
     const nextRmp: SeafarerRmpData = {
       ...target.rmp,
       visionHearing: vh,
@@ -854,7 +1005,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target || !target.rmp) return reply.code(404).send({ error: 'Seafarer RMP record not found.' });
 
-    const criteria = req.body as SeafarerRmpData['statutoryCriteria'];
+    const parsed = statutoryCriteriaSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid statutory criteria' });
+    }
+    const criteria = parsed.data;
     const nextRmp: SeafarerRmpData = {
       ...target.rmp,
       statutoryCriteria: criteria,
@@ -879,12 +1034,11 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
     const target = getPatientById(db, id);
     if (!target || !target.rmp) return reply.code(404).send({ error: 'Seafarer RMP record not found.' });
 
-    const body = (req.body || {}) as {
-      determination: Exclude<FitnessDetermination, 'Pending'>;
-      basis: string;
-      limitationText?: string;
-      reviewNoticeSigned?: boolean;
-    };
+    const parsed = determinationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid determination data' });
+    }
+    const body = parsed.data;
 
     if (body.determination === 'Fit' && evaluateDeckLookoutBlock(target.rmp)) {
       return reply.code(400).send({
@@ -970,12 +1124,14 @@ export function registerPatientRoutes(app: FastifyInstance, db: DatabaseSync): v
       });
     }
 
-    const body = (req.body || {}) as {
-      serialNo: string;
-      secondCheckerName: string;
-      seafarerSigned: boolean;
-      validityMonths?: number;
-    };
+    const parsed = issueCertificateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        ok: false,
+        error: parsed.error.issues[0]?.message || 'Invalid certificate issue payload',
+      });
+    }
+    const body = parsed.data;
 
     const stockRow = db
       .prepare('SELECT * FROM certificate_stock WHERE serial_no = ?')

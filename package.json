@@ -10,6 +10,7 @@
     "seed": "node --experimental-sqlite --import tsx server/seed.ts",
     "db:reset": "node --experimental-sqlite --import tsx server/reset.ts",
     "typecheck:server": "tsc -p tsconfig.server.json",
+    "test:security": "node --experimental-sqlite --import tsx server/security.test.ts",
     "build": "tsc && tsc -p tsconfig.server.json && vite build",
     "preview": "vite preview"
   },

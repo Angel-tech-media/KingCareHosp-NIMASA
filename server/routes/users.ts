@@ -3,15 +3,16 @@ import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { hashPassword, requireAuth } from '../auth.js';
 import { appendAudit, formatNowTimestamp } from '../db.js';
+import { clearFailedLogins, strongPasswordSchema } from '../security.js';
 
 const createUserSchema = z.object({
-  fullName: z.string().trim().min(2, 'Full name is required'),
-  email: z.string().trim().email('Valid email address is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  fullName: z.string().trim().min(2, 'Full name is required').max(120),
+  email: z.string().trim().email('Valid email address is required').max(160),
+  password: strongPasswordSchema,
   portalRole: z.enum(['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE', 'NIMASA']),
-  roleTitle: z.string().trim().min(2, 'System role title is required'),
-  department: z.string().trim().min(2, 'Department or organization is required'),
-  licenseNo: z.string().trim().optional(),
+  roleTitle: z.string().trim().min(2, 'System role title is required').max(120),
+  department: z.string().trim().min(2, 'Department or organization is required').max(120),
+  licenseNo: z.string().trim().max(64).optional(),
 });
 
 const statusSchema = z.object({
@@ -19,7 +20,7 @@ const statusSchema = z.object({
 });
 
 const passwordSchema = z.object({
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: strongPasswordSchema,
 });
 
 export function registerUserRoutes(app: FastifyInstance, db: DatabaseSync): void {
@@ -125,6 +126,7 @@ export function registerUserRoutes(app: FastifyInstance, db: DatabaseSync): void
     const newHash = hashPassword(parsed.data.password);
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, id);
     db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+    clearFailedLogins(target.email.toLowerCase());
 
     appendAudit(
       db,

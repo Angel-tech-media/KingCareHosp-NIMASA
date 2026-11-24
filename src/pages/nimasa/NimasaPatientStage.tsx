@@ -67,7 +67,8 @@ const RMP_TIMELINE_STEPS: RmpTimelineStep[] = [
 
 export const NimasaPatientStage: React.FC = () => {
   const { recordNo } = useParams<{ recordNo: string }>();
-  const { patients } = useHospital();
+  const { patients, activeRole } = useHospital();
+  const canOpenDoctorChart = activeRole === 'ADMIN' || activeRole === 'DOCTOR';
 
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
   const rmp = patient.rmp;
@@ -96,13 +97,15 @@ export const NimasaPatientStage: React.FC = () => {
           <span>Back to NIMASA Oversight Register</span>
         </Link>
 
-        <Link
-          to={`/doctor/patients/${patient.recordNo}`}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-800 border border-primary-200 text-xs font-semibold transition-colors"
-        >
-          <Stethoscope className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>Open RMP Exam Workspace ({patient.recordNo})</span>
-        </Link>
+        {canOpenDoctorChart && (
+          <Link
+            to={`/doctor/patients/${patient.recordNo}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-800 border border-primary-200 text-xs font-semibold transition-colors"
+          >
+            <Stethoscope className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Open RMP Exam Workspace ({patient.recordNo})</span>
+          </Link>
+        )}
       </div>
 
       {/* Seafarer Identity & Non-Clinical Outcome Header */}

@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { requireAuth } from '../auth.js';
 import { appendAudit, formatNowTimestamp, getPatientById } from '../db.js';
+import { checkRateLimit, getClientIp } from '../security.js';
 import type { VerificationEnquiry } from '../types.js';
 
 const batchSchema = z.object({
@@ -155,8 +156,16 @@ export function registerStockAndVerificationRoutes(
   });
 
   app.post('/api/verifications', async (req, reply) => {
-    const user = requireAuth(db, req, reply);
+    const user = requireAuth(db, req, reply, ['ADMIN', 'NIMASA', 'DOCTOR']);
     if (!user) return;
+
+    const rl = checkRateLimit(`verify:${getClientIp(req)}`, 30, 60_000);
+    if (!rl.allowed) {
+      reply.header('Retry-After', String(rl.retryAfterSeconds));
+      return reply
+        .code(429)
+        .send({ error: 'Too many verification requests. Please wait a moment before trying again.' });
+    }
 
     const parsed = verifySchema.safeParse(req.body);
     if (!parsed.success) {

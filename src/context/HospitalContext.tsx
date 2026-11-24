@@ -186,6 +186,7 @@ const EMPTY_DAILY_EQ: DailyEquipmentCheckState = {
 interface HospitalContextValue {
   authLoading: boolean;
   initialized: boolean;
+  demoToolsEnabled: boolean;
   currentUser: AuthUser | null;
   practice: PracticeSettings;
   patients: PatientRecord[];
@@ -204,6 +205,7 @@ interface HospitalContextValue {
   setupInitialAdmin: (input: InitialSetupInput) => Promise<AuthUser>;
   login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   seedSampleData: () => Promise<{
     defaultPassword: string;
     accounts: { email: string; fullName: string; portalRole: RoleType }[];
@@ -289,6 +291,7 @@ const HospitalContext = createContext<HospitalContextValue | undefined>(undefine
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authLoading, setAuthLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [demoToolsEnabled, setDemoToolsEnabled] = useState(true);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [practice, setPractice] = useState<PracticeSettings>(DEFAULT_PRACTICE);
   const [patients, setPatients] = useState<PatientRecord[]>([]);
@@ -334,10 +337,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const refreshAuthStatus = useCallback(async () => {
     const status = await apiRequest<{
       initialized: boolean;
-      userCount: number;
+      demoToolsEnabled?: boolean;
       practice: PracticeSettings;
     }>('/api/auth/status');
     setInitialized(status.initialized);
+    setDemoToolsEnabled(status.demoToolsEnabled !== false);
     setPractice(status.practice);
 
     try {
@@ -390,6 +394,13 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await apiRequest('/api/auth/logout', { method: 'POST' });
     clearOperationalState();
     await refreshAuthStatus();
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<void> => {
+    await apiRequest('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
   };
 
   const seedSampleData = async () => {
@@ -750,6 +761,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       value={{
         authLoading,
         initialized,
+        demoToolsEnabled,
         currentUser,
         practice,
         patients,
@@ -766,6 +778,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setupInitialAdmin,
         login,
         logout,
+        changePassword,
         seedSampleData,
         resetDatabase,
         updatePractice,

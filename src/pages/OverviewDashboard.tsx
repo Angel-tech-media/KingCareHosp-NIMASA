@@ -13,7 +13,50 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useHospital } from '../context/HospitalContext';
-import { FitnessDetermination } from '../types';
+import { FitnessDetermination, RoleType } from '../types';
+
+function ctaForRole(role: RoleType): { to: string; label: string } {
+  switch (role) {
+    case 'NIMASA':
+      return { to: '/nimasa/compliance', label: 'Verify Certificate' };
+    case 'DOCTOR':
+      return { to: '/doctor', label: 'Open RMP Queue' };
+    case 'LAB':
+      return { to: '/lab', label: 'Open Laboratory' };
+    case 'RADIOLOGY':
+      return { to: '/radiology', label: 'Open Radiology' };
+    case 'ENT':
+      return { to: '/ent', label: 'Open ENT & Audiology' };
+    case 'EYE':
+      return { to: '/eye', label: 'Open Eye Clinic' };
+    case 'FRONT_DESK':
+    case 'ADMIN':
+    default:
+      return { to: '/front-desk', label: '+ Register Seafarer' };
+  }
+}
+
+function patientRouteForRole(role: RoleType, recordNo: string): string {
+  switch (role) {
+    case 'NIMASA':
+      return `/nimasa/patients/${recordNo}`;
+    case 'DOCTOR':
+    case 'ADMIN':
+      return `/doctor/patients/${recordNo}`;
+    case 'FRONT_DESK':
+      return '/front-desk';
+    case 'LAB':
+      return '/lab';
+    case 'RADIOLOGY':
+      return '/radiology';
+    case 'ENT':
+      return '/ent';
+    case 'EYE':
+      return '/eye';
+    default:
+      return '/overview';
+  }
+}
 
 type TimeRange = '7D' | '30D' | '6M';
 
@@ -92,6 +135,7 @@ export const OverviewDashboard: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<string>('21');
 
   const isNimasa = activeRole === 'NIMASA';
+  const primaryCta = ctaForRole(activeRole);
 
   const seafarers = useMemo(() => patients.filter((p) => Boolean(p.rmp)), [patients]);
   const examinedCount = seafarers.length;
@@ -220,7 +264,7 @@ export const OverviewDashboard: React.FC = () => {
         meta: `${p.recordNo} · Awaiting RMP assessment`,
         badge: 'Waiting',
         accent: 'border-l-primary-600',
-        to: isNimasa ? `/nimasa/patients/${p.recordNo}` : `/doctor/patients/${p.recordNo}`,
+        to: patientRouteForRole(activeRole, p.recordNo),
       });
     });
 
@@ -234,7 +278,7 @@ export const OverviewDashboard: React.FC = () => {
         meta: `${p.rmp?.determination} · QAF-804-02 review`,
         badge: 'Review',
         accent: p.rmp?.determination === 'Not fit' ? 'border-l-crimson-500' : 'border-l-amber-500',
-        to: isNimasa ? `/nimasa/patients/${p.recordNo}` : `/doctor/patients/${p.recordNo}`,
+        to: patientRouteForRole(activeRole, p.recordNo),
       });
     });
 
@@ -251,7 +295,7 @@ export const OverviewDashboard: React.FC = () => {
     }
 
     return items.slice(0, 4);
-  }, [patients, seafarers, verificationEnquiries, isNimasa]);
+  }, [patients, seafarers, verificationEnquiries, activeRole]);
 
   // SVG Turnaround Curve geometry
   const curveSvg = useMemo(() => {
@@ -319,20 +363,15 @@ export const OverviewDashboard: React.FC = () => {
           </div>
 
           <Link
-            to={isNimasa ? '/nimasa/compliance' : '/front-desk'}
+            to={primaryCta.to}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold shadow-sm transition-colors"
           >
             {isNimasa ? (
-              <>
-                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-                <span>Verify Certificate</span>
-              </>
+              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
             ) : (
-              <>
-                <UserPlus className="w-4 h-4" aria-hidden="true" />
-                <span>+ Register Seafarer</span>
-              </>
+              <UserPlus className="w-4 h-4" aria-hidden="true" />
             )}
+            <span>{primaryCta.label}</span>
           </Link>
         </div>
       </div>
@@ -664,7 +703,7 @@ export const OverviewDashboard: React.FC = () => {
                 </p>
               </div>
               <Link
-                to={isNimasa ? '/nimasa/register' : activeRole === 'DOCTOR' ? '/doctor' : '/front-desk'}
+                to={isNimasa ? '/nimasa/register' : primaryCta.to}
                 className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-navy-800 transition-colors"
               >
                 <span>View all</span>
@@ -680,9 +719,11 @@ export const OverviewDashboard: React.FC = () => {
                 <p>
                   {isNimasa
                     ? 'Consented seafarer examinations will appear here once registered at the clinic.'
-                    : 'Register an arriving seafarer at Reception to begin tracking STCW Reg. I/9 examinations.'}
+                    : activeRole === 'FRONT_DESK' || activeRole === 'ADMIN'
+                    ? 'Register an arriving seafarer at Reception to begin tracking STCW Reg. I/9 examinations.'
+                    : 'Assigned seafarer examinations and investigation orders will appear here once dispatched.'}
                 </p>
-                {!isNimasa && (
+                {(activeRole === 'FRONT_DESK' || activeRole === 'ADMIN') && (
                   <Link
                     to="/front-desk"
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-navy-800 text-white font-semibold"
@@ -704,9 +745,7 @@ export const OverviewDashboard: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-surface-border/70">
                   {recentExaminations.map((p) => {
-                    const target = isNimasa
-                      ? `/nimasa/patients/${p.recordNo}`
-                      : `/doctor/patients/${p.recordNo}`;
+                    const target = patientRouteForRole(activeRole, p.recordNo);
                     return (
                       <tr
                         key={p.id}

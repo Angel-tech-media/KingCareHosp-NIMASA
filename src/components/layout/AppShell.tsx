@@ -21,6 +21,8 @@ import {
   FileCheck2,
   Ear,
   Eye,
+  KeyRound,
+  CheckCircle2,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { RoleType } from '../../types';
@@ -75,13 +77,21 @@ function homePathForRole(role: RoleType): string {
 export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, practice, auditLog, patients, logout } = useHospital();
+  const { currentUser, practice, auditLog, patients, logout, changePassword } = useHospital();
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+
+  const [pwModalOpen, setPwModalOpen] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [confirmPw, setConfirmPw] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const searchBoxRef = useRef<HTMLDivElement>(null);
@@ -108,6 +118,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       if (e.key === 'Escape') {
         setAccountMenuOpen(false);
         setSearchFocused(false);
+        setPwModalOpen(false);
       }
     };
     document.addEventListener('mousedown', onOutside);
@@ -146,6 +157,44 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     setAccountMenuOpen(false);
     await logout();
     navigate('/login', { replace: true });
+  };
+
+  const openChangePasswordModal = () => {
+    setAccountMenuOpen(false);
+    setCurrentPw('');
+    setNewPw('');
+    setConfirmPw('');
+    setPwError(null);
+    setPwSuccess(false);
+    setPwModalOpen(true);
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    setPwSuccess(false);
+
+    if (newPw.length < 8 || !/[A-Z]/.test(newPw) || !/[a-z]/.test(newPw) || !/\d/.test(newPw)) {
+      setPwError('New password must be at least 8 characters and include uppercase, lowercase, and a number.');
+      return;
+    }
+    if (newPw !== confirmPw) {
+      setPwError('New password and confirmation do not match.');
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      await changePassword(currentPw, newPw);
+      setPwSuccess(true);
+      setCurrentPw('');
+      setNewPw('');
+      setConfirmPw('');
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : 'Failed to update password.');
+    } finally {
+      setPwSaving(false);
+    }
   };
 
   const role = currentUser?.portalRole;
@@ -651,7 +700,15 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       )}
                     </div>
 
-                    <div className="pt-1.5">
+                    <div className="pt-1.5 space-y-1">
+                      <button
+                        type="button"
+                        onClick={openChangePasswordModal}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-ink-secondary hover:bg-surface-canvas hover:text-ink-primary transition-colors"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" aria-hidden="true" />
+                        <span>Change Password</span>
+                      </button>
                       <button
                         type="button"
                         onClick={handleSignOut}
@@ -719,6 +776,129 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
           )}
         </div>
       </SlideOver>
+
+      {/* Self-Service Change Password Modal */}
+      {pwModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="change-password-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div
+            className="absolute inset-0 bg-navy-950/35 backdrop-blur-sm"
+            onClick={() => setPwModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-white border border-surface-border shadow-2xl p-6 space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="change-password-title" className="text-base font-semibold text-ink-primary">
+                  Change My Password
+                </h2>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  Updates your sign-in credentials and closes any other open sessions.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close change password dialog"
+                onClick={() => setPwModalOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-ink-muted hover:bg-surface-canvas"
+              >
+                <X className="w-4 h-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            {pwError && (
+              <div
+                role="alert"
+                className="p-3 rounded-xl bg-crimson-50 border border-crimson-100 text-xs text-crimson-700"
+              >
+                {pwError}
+              </div>
+            )}
+
+            {pwSuccess && (
+              <div
+                role="status"
+                className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+                <span>Your password has been updated securely.</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="pw-current" className="block text-xs font-semibold text-ink-secondary mb-1">
+                  Current Password
+                </label>
+                <input
+                  id="pw-current"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPw}
+                  onChange={(e) => setCurrentPw(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-surface-border-strong px-3.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="pw-new" className="block text-xs font-semibold text-ink-secondary mb-1">
+                  New Password
+                </label>
+                <input
+                  id="pw-new"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={newPw}
+                  onChange={(e) => setNewPw(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-surface-border-strong px-3.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                />
+                <p className="text-[11px] text-ink-muted mt-1">
+                  Minimum 8 characters with uppercase, lowercase, and a number.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="pw-confirm" className="block text-xs font-semibold text-ink-secondary mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  id="pw-confirm"
+                  type="password"
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={confirmPw}
+                  onChange={(e) => setConfirmPw(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-surface-border-strong px-3.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setPwModalOpen(false)}
+                  className="h-9 px-4 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-semibold text-ink-secondary"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwSaving}
+                  className="h-9 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 disabled:opacity-60 text-white text-xs font-semibold"
+                >
+                  {pwSaving ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

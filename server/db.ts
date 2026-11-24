@@ -97,7 +97,8 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
       token TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at TEXT NOT NULL,
-      expires_at TEXT NOT NULL
+      expires_at TEXT NOT NULL,
+      last_seen_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS departments (
@@ -259,6 +260,13 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
   `);
 
   // Idempotent column migrations for existing databases
+  const sessionCols = (
+    db.prepare('PRAGMA table_info(sessions)').all() as { name: string }[]
+  ).map((c) => c.name);
+  if (!sessionCols.includes('last_seen_at')) {
+    db.exec('ALTER TABLE sessions ADD COLUMN last_seen_at TEXT;');
+  }
+
   const orderCols = (
     db.prepare('PRAGMA table_info(diagnostic_orders)').all() as { name: string }[]
   ).map((c) => c.name);
@@ -527,6 +535,57 @@ export function getPatientById(db: DatabaseSync, id: string): PatientRecord | nu
   };
 }
 
+function redactVisionHearing(
+  vh: SeafarerRmpData['visionHearing'],
+  mode: 'none' | 'eye' | 'ent'
+): SeafarerRmpData['visionHearing'] {
+  if (mode === 'eye') {
+    return {
+      ...vh,
+      audiometryRight: { hz500: 0, hz1000: 0, hz2000: 0, hz3000: 0 },
+      audiometryLeft: { hz500: 0, hz1000: 0, hz2000: 0, hz3000: 0 },
+      unaidedHearingSatisfactory: false,
+      speechClear: false,
+    };
+  }
+  if (mode === 'ent') {
+    return {
+      ...vh,
+      distanceUnaided: { right: '—', left: '—', both: '—' },
+      distanceAided: { right: '—', left: '—', both: '—' },
+      visualAidsRequired: false,
+      nearVisionMet: false,
+      intermediateVisionMet: false,
+      visualFieldsNormal: false,
+      nightVisionNormal: false,
+      diplopiaAbsent: false,
+      colourVisionLastDate: '—',
+      colourVisionTestMethod: 'Restricted (QA-P-808)',
+      colourVisionCie: 'Not tested',
+      colourVisionReferred: false,
+    };
+  }
+  return {
+    distanceUnaided: { right: '—', left: '—', both: '—' },
+    distanceAided: { right: '—', left: '—', both: '—' },
+    visualAidsRequired: vh.visualAidsRequired,
+    nearVisionMet: false,
+    intermediateVisionMet: false,
+    visualFieldsNormal: false,
+    nightVisionNormal: false,
+    diplopiaAbsent: false,
+    colourVisionLastDate: vh.colourVisionLastDate,
+    colourVisionTestMethod: 'Restricted (QA-P-808)',
+    colourVisionCie: 'Not tested',
+    colourVisionReferred: vh.colourVisionReferred,
+    audiometryRight: { hz500: 0, hz1000: 0, hz2000: 0, hz3000: 0 },
+    audiometryLeft: { hz500: 0, hz1000: 0, hz2000: 0, hz3000: 0 },
+    unaidedHearingSatisfactory: vh.unaidedHearingSatisfactory,
+    speechClear: false,
+    testedBy: undefined,
+  };
+}
+
 function redactForNimasa(p: PatientRecord): PatientRecord {
   const safeOrders: DiagnosticOrder[] = p.orders.map((o) => ({
     ...o,
@@ -541,6 +600,7 @@ function redactForNimasa(p: PatientRecord): PatientRecord {
   const safeRmp: SeafarerRmpData | undefined = p.rmp
     ? {
         ...p.rmp,
+        visionHearing: redactVisionHearing(p.rmp.visionHearing, 'none'),
         determinationBasis: p.rmp.determinationBasis
           ? 'Clinical rationale restricted to Examining RMP (QA-P-808)'
           : undefined,
@@ -556,11 +616,54 @@ function redactForNimasa(p: PatientRecord): PatientRecord {
       spo2: '—',
       weight: '—',
     },
+    firstAssessmentSummary: undefined,
     firstAssessmentFullNote: undefined,
     secondAssessmentNote: undefined,
     medications: [],
     dischargeSummary: undefined,
     orders: safeOrders,
+    rmp: safeRmp,
+  };
+}
+
+function redactForFrontDesk(p: PatientRecord): PatientRecord {
+  const safeRmp: SeafarerRmpData | undefined = p.rmp
+    ? {
+        ...p.rmp,
+        determinationBasis: undefined,
+        limitationText: undefined,
+        rightOfReview: undefined,
+        visionHearing: redactVisionHearing(p.rmp.visionHearing, 'none'),
+        statutoryCriteria: {
+          physicalCapabilityBasicTraining: false,
+          hearingAndSpeechAdequate: false,
+          noConditionPreventingDuties: false,
+          noConditionAggravatedBySea: false,
+          noImpairingMedication: false,
+          fitForLookout: p.rmp.statutoryCriteria.fitForLookout,
+        },
+      }
+    : undefined;
+
+  return {
+    ...p,
+    vitals: {
+      bp: 'Restricted',
+      temp: '—',
+      pulse: '—',
+      spo2: '—',
+      weight: '—',
+    },
+    firstAssessmentSummary: undefined,
+    firstAssessmentFullNote: undefined,
+    secondAssessmentNote: undefined,
+    medications: [],
+    dischargeSummary: undefined,
+    orders: [],
+    timeline: p.timeline.map((t) => ({
+      ...t,
+      publicSummary: `Stage reached: ${t.stage}`,
+    })),
     rmp: safeRmp,
   };
 }
@@ -572,25 +675,52 @@ const DEPT_BY_ROLE: Partial<Record<RoleType, DiagnosticOrder['department']>> = {
   EYE: 'Eye Clinic',
 };
 
+const DEPT_ID_BY_ROLE: Partial<Record<RoleType, DepartmentMaster['id']>> = {
+  LAB: 'lab',
+  RADIOLOGY: 'radiology',
+  ENT: 'ent',
+  EYE: 'eye',
+};
+
 function redactForDiagnosticDept(p: PatientRecord, role: RoleType): PatientRecord {
   const allowedDept = DEPT_BY_ROLE[role];
-  const deptOrders = allowedDept ? p.orders.filter((o) => o.department === allowedDept) : p.orders;
+  const deptOrders = allowedDept ? p.orders.filter((o) => o.department === allowedDept) : [];
+  const vhMode = role === 'EYE' ? 'eye' : role === 'ENT' ? 'ent' : 'none';
 
   const safeRmp: SeafarerRmpData | undefined = p.rmp
     ? {
         ...p.rmp,
         determinationBasis: undefined,
         limitationText: undefined,
+        rightOfReview: undefined,
+        issuedCertificate: undefined,
+        visionHearing: redactVisionHearing(p.rmp.visionHearing, vhMode),
+        statutoryCriteria: {
+          physicalCapabilityBasicTraining: false,
+          hearingAndSpeechAdequate: false,
+          noConditionPreventingDuties: false,
+          noConditionAggravatedBySea: false,
+          noImpairingMedication: false,
+          fitForLookout: p.rmp.statutoryCriteria.fitForLookout,
+        },
       }
     : undefined;
 
   return {
     ...p,
+    vitals: {
+      bp: 'Restricted',
+      temp: '—',
+      pulse: '—',
+      spo2: '—',
+      weight: '—',
+    },
     firstAssessmentSummary: undefined,
     firstAssessmentFullNote: undefined,
     secondAssessmentNote: undefined,
     medications: [],
     dischargeSummary: undefined,
+    timeline: [],
     orders: deptOrders,
     rmp: safeRmp,
   };
@@ -598,14 +728,10 @@ function redactForDiagnosticDept(p: PatientRecord, role: RoleType): PatientRecor
 
 export function getFullBootstrap(db: DatabaseSync, currentUser: AuthUser) {
   const practice = getPracticeSettings(db);
+  const role = currentUser.portalRole;
+  const ownDeptId = DEPT_ID_BY_ROLE[role];
+  const canViewAllDepts = role === 'ADMIN' || role === 'DOCTOR';
 
-  const deptRows = db.prepare('SELECT * FROM departments ORDER BY rowid ASC').all() as Record<
-    string,
-    unknown
-  >[];
-  const staffRows = db
-    .prepare('SELECT * FROM department_staff ORDER BY created_at DESC')
-    .all() as Record<string, unknown>[];
   const eqRows = db
     .prepare(
       `SELECT e.*, d.name AS department_name
@@ -614,88 +740,115 @@ export function getFullBootstrap(db: DatabaseSync, currentUser: AuthUser) {
        ORDER BY e.created_at DESC`
     )
     .all() as Record<string, unknown>[];
-  const certRows = db
-    .prepare('SELECT * FROM department_certificates ORDER BY created_at DESC')
-    .all() as Record<string, unknown>[];
 
-  const departments: DepartmentMaster[] = deptRows.map((d) => {
-    const deptId = String(d.id) as DepartmentMaster['id'];
-    const staff: DepartmentStaff[] = staffRows
-      .filter((s) => String(s.department_id) === deptId)
-      .map((s) => ({
-        id: String(s.id),
-        name: String(s.name),
-        role: String(s.role),
-        qualification: String(s.qualification),
-        licenseNo: String(s.license_no),
-        shift: String(s.shift),
-      }));
+  let departments: DepartmentMaster[] = [];
+  if (canViewAllDepts || ownDeptId) {
+    const deptRows = (
+      ownDeptId
+        ? db.prepare('SELECT * FROM departments WHERE id = ? ORDER BY rowid ASC').all(ownDeptId)
+        : db.prepare('SELECT * FROM departments ORDER BY rowid ASC').all()
+    ) as Record<string, unknown>[];
 
-    const equipment: DepartmentEquipment[] = eqRows
-      .filter((e) => String(e.department_id) === deptId)
-      .map((e) => ({
-        id: String(e.id),
-        name: String(e.name),
-        manufacturer: String(e.manufacturer || ''),
-        model: String(e.model),
-        yearOfMake: Number(e.year_of_make),
-        serialNo: String(e.serial_no),
-        calibrationCertNo: String(e.calibration_cert_no || ''),
-        lastCalibrated: String(e.last_calibrated || ''),
-        nextCalibrationDue: String(e.next_calibration_due || ''),
-        registeredBy: String(e.registered_by || ''),
-        status: String(e.status) as DepartmentEquipment['status'],
-      }));
+    const staffRows = (
+      ownDeptId
+        ? db
+            .prepare('SELECT * FROM department_staff WHERE department_id = ? ORDER BY created_at DESC')
+            .all(ownDeptId)
+        : db.prepare('SELECT * FROM department_staff ORDER BY created_at DESC').all()
+    ) as Record<string, unknown>[];
 
-    const certificates: DepartmentCertificate[] = certRows
-      .filter((c) => String(c.department_id) === deptId)
-      .map((c) => ({
-        id: String(c.id),
-        type: String(c.type),
-        issuingBody: String(c.issuing_body),
-        certificateNo: String(c.certificate_no),
-        yearCertified: Number(c.year_certified),
-        expiryDate: String(c.expiry_date),
-        status: String(c.status) as DepartmentCertificate['status'],
-      }));
+    const certRows = (
+      ownDeptId
+        ? db
+            .prepare(
+              'SELECT * FROM department_certificates WHERE department_id = ? ORDER BY created_at DESC'
+            )
+            .all(ownDeptId)
+        : db.prepare('SELECT * FROM department_certificates ORDER BY created_at DESC').all()
+    ) as Record<string, unknown>[];
 
-    return {
-      id: deptId,
-      name: String(d.name),
-      shortCode: String(d.short_code),
-      floorLocation: String(d.floor_location),
-      description: String(d.description),
-      hod: {
-        name: String(d.hod_name),
-        title: String(d.hod_title),
-        qualifications: String(d.hod_qualifications),
-        fellowship: String(d.hod_fellowship),
-        yearsExperience: Number(d.hod_years_experience),
-        email: String(d.hod_email),
-      },
-      staff,
-      equipment,
-      certificates,
-    };
-  });
+    departments = deptRows.map((d) => {
+      const deptId = String(d.id) as DepartmentMaster['id'];
+      const staff: DepartmentStaff[] = staffRows
+        .filter((s) => String(s.department_id) === deptId)
+        .map((s) => ({
+          id: String(s.id),
+          name: String(s.name),
+          role: String(s.role),
+          qualification: String(s.qualification),
+          licenseNo: String(s.license_no),
+          shift: String(s.shift),
+        }));
 
-  const userRows = db
-    .prepare(
-      'SELECT id, full_name, email, role_title, portal_role, department, license_no, status, last_login FROM users ORDER BY created_at DESC'
-    )
-    .all() as Record<string, unknown>[];
+      const equipment: DepartmentEquipment[] = eqRows
+        .filter((e) => String(e.department_id) === deptId)
+        .map((e) => ({
+          id: String(e.id),
+          name: String(e.name),
+          manufacturer: String(e.manufacturer || ''),
+          model: String(e.model),
+          yearOfMake: Number(e.year_of_make),
+          serialNo: String(e.serial_no),
+          calibrationCertNo: String(e.calibration_cert_no || ''),
+          lastCalibrated: String(e.last_calibrated || ''),
+          nextCalibrationDue: String(e.next_calibration_due || ''),
+          registeredBy: String(e.registered_by || ''),
+          status: String(e.status) as DepartmentEquipment['status'],
+        }));
 
-  const users: SystemUser[] = userRows.map((u) => ({
-    id: String(u.id),
-    name: String(u.full_name),
-    email: String(u.email),
-    role: String(u.role_title),
-    portalCategory: String(u.portal_role) as RoleType,
-    department: String(u.department),
-    licenseNo: u.license_no ? String(u.license_no) : undefined,
-    status: String(u.status) as SystemUser['status'],
-    lastLogin: String(u.last_login),
-  }));
+      const certificates: DepartmentCertificate[] = certRows
+        .filter((c) => String(c.department_id) === deptId)
+        .map((c) => ({
+          id: String(c.id),
+          type: String(c.type),
+          issuingBody: String(c.issuing_body),
+          certificateNo: String(c.certificate_no),
+          yearCertified: Number(c.year_certified),
+          expiryDate: String(c.expiry_date),
+          status: String(c.status) as DepartmentCertificate['status'],
+        }));
+
+      return {
+        id: deptId,
+        name: String(d.name),
+        shortCode: String(d.short_code),
+        floorLocation: String(d.floor_location),
+        description: String(d.description),
+        hod: {
+          name: String(d.hod_name),
+          title: String(d.hod_title),
+          qualifications: String(d.hod_qualifications),
+          fellowship: String(d.hod_fellowship),
+          yearsExperience: Number(d.hod_years_experience),
+          email: String(d.hod_email),
+        },
+        staff,
+        equipment,
+        certificates,
+      };
+    });
+  }
+
+  let users: SystemUser[] = [];
+  if (role === 'ADMIN') {
+    const userRows = db
+      .prepare(
+        'SELECT id, full_name, email, role_title, portal_role, department, license_no, status, last_login FROM users ORDER BY created_at DESC'
+      )
+      .all() as Record<string, unknown>[];
+
+    users = userRows.map((u) => ({
+      id: String(u.id),
+      name: String(u.full_name),
+      email: String(u.email),
+      role: String(u.role_title),
+      portalCategory: String(u.portal_role) as RoleType,
+      department: String(u.department),
+      licenseNo: u.license_no ? String(u.license_no) : undefined,
+      status: String(u.status) as SystemUser['status'],
+      lastLogin: String(u.last_login),
+    }));
+  }
 
   const patientIds = db
     .prepare('SELECT id FROM patients ORDER BY rowid DESC')
@@ -705,85 +858,126 @@ export function getFullBootstrap(db: DatabaseSync, currentUser: AuthUser) {
     .map((r) => getPatientById(db, r.id))
     .filter((p): p is PatientRecord => p !== null);
 
-  if (currentUser.portalRole === 'NIMASA') {
+  if (role === 'NIMASA') {
     patients = patients
       .filter((p) => p.nimasaMember && p.consentToShareWithNimasa)
       .map(redactForNimasa);
-  } else if (
-    currentUser.portalRole === 'LAB' ||
-    currentUser.portalRole === 'RADIOLOGY' ||
-    currentUser.portalRole === 'ENT' ||
-    currentUser.portalRole === 'EYE'
-  ) {
-    patients = patients.map((p) => redactForDiagnosticDept(p, currentUser.portalRole));
+  } else if (role === 'FRONT_DESK') {
+    patients = patients.map(redactForFrontDesk);
+  } else if (ownDeptId) {
+    const allowedDept = DEPT_BY_ROLE[role];
+    patients = patients
+      .filter((p) => p.orders.some((o) => o.department === allowedDept))
+      .map((p) => redactForDiagnosticDept(p, role));
   }
 
-  const stockRows = db
-    .prepare('SELECT * FROM certificate_stock ORDER BY serial_no ASC')
-    .all() as Record<string, unknown>[];
-  const certificateStock: CertificateStockItem[] = stockRows.map((s) => ({
-    serialNo: String(s.serial_no),
-    status: String(s.status) as CertificateStockItem['status'],
-    assignedTo: s.assigned_to ? String(s.assigned_to) : undefined,
-    recordNo: s.record_no ? String(s.record_no) : undefined,
-    seafarerName: s.seafarer_name ? String(s.seafarer_name) : undefined,
-    updatedAt: String(s.updated_at),
-    note: s.note ? String(s.note) : undefined,
-  }));
+  let certificateStock: CertificateStockItem[] = [];
+  if (canViewAllDepts || role === 'NIMASA') {
+    const stockRows = db
+      .prepare('SELECT * FROM certificate_stock ORDER BY serial_no ASC')
+      .all() as Record<string, unknown>[];
+    const consentedRecordNos = new Set(patients.map((p) => p.recordNo));
 
-  const latestEqCheck = eqRows.find((e) => Boolean(e.daily_checked_at));
+    certificateStock = stockRows.map((s) => {
+      const recNo = s.record_no ? String(s.record_no) : undefined;
+      const maskPii = role === 'NIMASA' && Boolean(recNo) && !consentedRecordNos.has(recNo!);
+      return {
+        serialNo: String(s.serial_no),
+        status: String(s.status) as CertificateStockItem['status'],
+        assignedTo: s.assigned_to ? String(s.assigned_to) : undefined,
+        recordNo: maskPii ? undefined : recNo,
+        seafarerName: maskPii ? undefined : s.seafarer_name ? String(s.seafarer_name) : undefined,
+        updatedAt: String(s.updated_at),
+        note: maskPii ? undefined : s.note ? String(s.note) : undefined,
+      };
+    });
+  }
+
+  const scopedEqRows = ownDeptId
+    ? eqRows.filter((e) => String(e.department_id) === ownDeptId)
+    : eqRows;
+  const latestEqCheck = scopedEqRows.find((e) => Boolean(e.daily_checked_at));
   const dailyEquipmentCheck: DailyEquipmentCheckState = {
     date: formatDateShort(),
     checkedBy: latestEqCheck
-      ? String(latestEqCheck.daily_checked_by || 'Clinical Support Staff')
+      ? canViewAllDepts || ownDeptId
+        ? String(latestEqCheck.daily_checked_by || 'Clinical Support Staff')
+        : 'On-duty clinical team'
       : 'Awaiting first check',
     checkedAt: latestEqCheck ? String(latestEqCheck.daily_checked_at) : formatNowTimestamp(),
-    items: eqRows.map((e) => ({
+    items: scopedEqRows.map((e) => ({
       id: String(e.id),
-      label: `${String(e.name)}${e.model ? ` (${String(e.model)})` : ''}`,
+      label:
+        canViewAllDepts || ownDeptId
+          ? `${String(e.name)}${e.model ? ` (${String(e.model)})` : ''}`
+          : String(e.department_name),
       department: String(e.department_name),
       passed: Boolean(e.daily_check_passed),
     })),
   };
 
-  const sessionRow = db
-    .prepare('SELECT * FROM session_recognition_checks ORDER BY id DESC LIMIT 1')
-    .get() as Record<string, unknown> | undefined;
+  let sessionCheck: SessionRecognitionCheck = {
+    date: formatDateShort(),
+    practitionerName: '',
+    mdcnNo: '',
+    onAgencyRegister: false,
+    premisesInScope: false,
+    licenceValid: false,
+  };
+  if (canViewAllDepts) {
+    const sessionRow = db
+      .prepare('SELECT * FROM session_recognition_checks ORDER BY id DESC LIMIT 1')
+      .get() as Record<string, unknown> | undefined;
 
-  const sessionCheck: SessionRecognitionCheck = sessionRow
-    ? {
-        date: String(sessionRow.check_date),
-        practitionerName: String(sessionRow.practitioner_name),
-        mdcnNo: String(sessionRow.mdcn_no),
-        onAgencyRegister: Boolean(sessionRow.on_agency_register),
-        premisesInScope: Boolean(sessionRow.premises_in_scope),
-        licenceValid: Boolean(sessionRow.licence_valid),
-        confirmedAt: String(sessionRow.confirmed_at),
-      }
-    : {
-        date: formatDateShort(),
-        practitionerName: currentUser.fullName,
-        mdcnNo: currentUser.licenseNo || 'Pending confirmation',
-        onAgencyRegister: false,
-        premisesInScope: false,
-        licenceValid: false,
-      };
+    sessionCheck = sessionRow
+      ? {
+          date: String(sessionRow.check_date),
+          practitionerName: String(sessionRow.practitioner_name),
+          mdcnNo: String(sessionRow.mdcn_no),
+          onAgencyRegister: Boolean(sessionRow.on_agency_register),
+          premisesInScope: Boolean(sessionRow.premises_in_scope),
+          licenceValid: Boolean(sessionRow.licence_valid),
+          confirmedAt: String(sessionRow.confirmed_at),
+        }
+      : {
+          date: formatDateShort(),
+          practitionerName: currentUser.fullName,
+          mdcnNo: currentUser.licenseNo || 'Pending confirmation',
+          onAgencyRegister: false,
+          premisesInScope: false,
+          licenceValid: false,
+        };
+  }
 
-  const enquiryRows = db
-    .prepare('SELECT * FROM verification_enquiries ORDER BY rowid DESC')
-    .all() as Record<string, unknown>[];
-  const verificationEnquiries: VerificationEnquiry[] = enquiryRows.map((v) => ({
-    id: String(v.id),
-    timestamp: String(v.timestamp),
-    enquirer: String(v.enquirer),
-    certificateNo: String(v.certificate_no),
-    result: String(v.result) as VerificationEnquiry['result'],
-    outcomeSummary: String(v.outcome_summary),
-  }));
+  let verificationEnquiries: VerificationEnquiry[] = [];
+  if (role === 'ADMIN' || role === 'NIMASA') {
+    const enquiryRows = db
+      .prepare('SELECT * FROM verification_enquiries ORDER BY rowid DESC')
+      .all() as Record<string, unknown>[];
+    verificationEnquiries = enquiryRows.map((v) => ({
+      id: String(v.id),
+      timestamp: String(v.timestamp),
+      enquirer: String(v.enquirer),
+      certificateNo: String(v.certificate_no),
+      result: String(v.result) as VerificationEnquiry['result'],
+      outcomeSummary: String(v.outcome_summary),
+    }));
+  }
 
-  const auditRows = db
-    .prepare('SELECT * FROM audit_logs ORDER BY rowid DESC LIMIT 200')
-    .all() as Record<string, unknown>[];
+  const auditRows = (
+    role === 'ADMIN'
+      ? db.prepare('SELECT * FROM audit_logs ORDER BY rowid DESC LIMIT 200').all()
+      : role === 'NIMASA'
+      ? db
+          .prepare(
+            "SELECT * FROM audit_logs WHERE action = 'CERTIFICATE_VERIFICATION' ORDER BY rowid DESC LIMIT 50"
+          )
+          .all()
+      : db
+          .prepare('SELECT * FROM audit_logs WHERE actor_name = ? ORDER BY rowid DESC LIMIT 30')
+          .all(currentUser.fullName)
+  ) as Record<string, unknown>[];
+
   const auditLog: AuditLogEntry[] = auditRows.map((a) => ({
     id: String(a.id),
     timestamp: String(a.timestamp),

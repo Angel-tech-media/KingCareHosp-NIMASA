@@ -2,9 +2,11 @@ import crypto from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AuthUser, RoleType } from './types.js';
+import { isProductionEnv } from './security.js';
 
 export const SESSION_COOKIE = 'kc_session';
-const SESSION_TTL_DAYS = 7;
+const SESSION_TTL_HOURS = Math.max(1, Number(process.env.SESSION_TTL_HOURS || 12) || 12);
+const SESSION_IDLE_MINUTES = Math.max(5, Number(process.env.SESSION_IDLE_MINUTES || 60) || 60);
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -37,28 +39,39 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
   return result;
 }
 
-export function setSessionCookie(reply: FastifyReply, token: string): void {
-  const maxAge = SESSION_TTL_DAYS * 24 * 60 * 60;
+export function setSessionCookie(
+  reply: FastifyReply,
+  token: string,
+  req?: FastifyRequest
+): void {
+  const maxAge = SESSION_TTL_HOURS * 3600;
+  const forwardedProto = String(req?.headers['x-forwarded-proto'] || '').toLowerCase();
+  const secure = isProductionEnv() || forwardedProto === 'https';
   reply.header(
     'Set-Cookie',
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`
   );
 }
 
-export function clearSessionCookie(reply: FastifyReply): void {
+export function clearSessionCookie(reply: FastifyReply, req?: FastifyRequest): void {
+  const forwardedProto = String(req?.headers['x-forwarded-proto'] || '').toLowerCase();
+  const secure = isProductionEnv() || forwardedProto === 'https';
   reply.header(
     'Set-Cookie',
-    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`
+    `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`
   );
 }
 
 export function createSession(db: DatabaseSync, userId: string): string {
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(nowIso);
+
   const token = crypto.randomBytes(32).toString('hex');
-  const createdAt = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(nowMs + SESSION_TTL_HOURS * 3600 * 1000).toISOString();
   db.prepare(
-    'INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)'
-  ).run(token, userId, createdAt, expiresAt);
+    'INSERT INTO sessions (token, user_id, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?)'
+  ).run(token, userId, nowIso, expiresAt, nowIso);
   return token;
 }
 
@@ -73,7 +86,8 @@ export function getAuthenticatedUser(db: DatabaseSync, req: FastifyRequest): Aut
 
   const row = db
     .prepare(
-      `SELECT u.id, u.full_name, u.email, u.role_title, u.portal_role, u.department, u.license_no, u.status, s.expires_at
+      `SELECT u.id, u.full_name, u.email, u.role_title, u.portal_role, u.department, u.license_no, u.status,
+              s.expires_at, s.created_at, s.last_seen_at
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token = ?`
@@ -89,13 +103,32 @@ export function getAuthenticatedUser(db: DatabaseSync, req: FastifyRequest): Aut
         license_no: string | null;
         status: 'Active' | 'On Leave' | 'Suspended';
         expires_at: string;
+        created_at: string;
+        last_seen_at: string | null;
       }
     | undefined;
 
   if (!row) return null;
-  if (new Date(row.expires_at).getTime() < Date.now() || row.status === 'Suspended') {
+  const nowMs = Date.now();
+  const expiresMs = new Date(row.expires_at).getTime();
+  const lastSeenMs = new Date(row.last_seen_at || row.created_at).getTime();
+
+  if (
+    Number.isNaN(expiresMs) ||
+    expiresMs < nowMs ||
+    Number.isNaN(lastSeenMs) ||
+    nowMs - lastSeenMs > SESSION_IDLE_MINUTES * 60 * 1000 ||
+    row.status === 'Suspended'
+  ) {
     deleteSession(db, token);
     return null;
+  }
+
+  if (nowMs - lastSeenMs > 60_000) {
+    db.prepare('UPDATE sessions SET last_seen_at = ? WHERE token = ?').run(
+      new Date(nowMs).toISOString(),
+      token
+    );
   }
 
   return {
