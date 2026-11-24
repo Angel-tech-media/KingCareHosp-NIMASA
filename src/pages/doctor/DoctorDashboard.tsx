@@ -10,6 +10,7 @@ export const DoctorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const {
     patients,
+    currentUser,
     startFirstAssessment,
     sessionCheck,
     dailyEquipmentCheck,
@@ -23,7 +24,7 @@ export const DoctorDashboard: React.FC = () => {
     (s) => s.status === 'Issued to RMP'
   ).length;
 
-  const [activeTab, setActiveTab] = useState<DoctorQueueTab>('AWAITING');
+  const [activeTab, setActiveTab] = useState<DoctorQueueTab>('ALL_ACTIVE');
 
   const awaitingList = useMemo(
     () =>
@@ -42,6 +43,8 @@ export const DoctorDashboard: React.FC = () => {
           p.status === 'Active' &&
           (p.currentStage === 'In assessment' ||
             p.currentStage === 'First assessment complete' ||
+            p.currentStage === 'Tests requested' ||
+            p.currentStage === 'Admitted' ||
             p.currentStage === 'Second assessment')
       ),
     [patients]
@@ -70,17 +73,17 @@ export const DoctorDashboard: React.FC = () => {
       : allActiveList;
 
   const tabs: TabItem<DoctorQueueTab>[] = [
+    { id: 'ALL_ACTIVE', label: 'All Active', count: allActiveList.length },
     { id: 'AWAITING', label: 'Awaiting', count: awaitingList.length },
     { id: 'IN_ASSESSMENT', label: 'In Exam', count: inAssessmentList.length },
     { id: 'RESULTS_READY', label: 'Results Ready', count: resultsReadyList.length },
-    { id: 'ALL_ACTIVE', label: 'All Active', count: allActiveList.length },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Seafarer Examinations"
-        subtitle="Recognized Medical Practitioner queue · Dr. Babatunde Fashola-Cole"
+        subtitle={`Recognized Medical Practitioner queue · ${currentUser?.fullName || 'RMP Desk'}`}
       />
 
       {/* Single-Line Pre-Session Status Strip */}

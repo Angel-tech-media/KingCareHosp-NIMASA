@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlaskConical, ScanLine, Ear, Eye, CheckSquare } from 'lucide-react';
 import { Modal } from '../../components/ui/Modal';
 
@@ -9,6 +9,8 @@ export interface SampleTestCatalogItem {
   testName: string;
   referenceRange: string;
 }
+
+export type OrderDepartment = SampleTestCatalogItem['department'];
 
 export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
   // Eye Clinic
@@ -95,12 +97,26 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
   },
 ];
 
+const DEFAULT_DEPT_INSTRUCTIONS: Record<OrderDepartment, string> = {
+  'Eye Clinic':
+    'Record unaided & aided Snellen decimal acuity, D65 Ishihara colour screening, visual fields, and night vision without issuing fit/unfit verdict (RQP-303).',
+  'ENT & Audiology':
+    'Perform pure-tone unaided audiometry (500–3000 Hz) for both ears and speech clarity check; record objective dB thresholds only (RQP-303).',
+  Laboratory:
+    'Collect labelled specimen after verifying seafarer ID and publish quantitative analytical values with reference ranges.',
+  Radiology:
+    'Perform requested imaging study after verifying seafarer ID, record objective radiological findings, and attach report/film.',
+};
+
 interface OrderTestsModalProps {
   isOpen: boolean;
   onClose: () => void;
   patientName: string;
   recordNo: string;
-  onConfirmOrders: (selectedTests: SampleTestCatalogItem[], clinicalInstruction: string) => void;
+  onConfirmOrders: (
+    selectedTests: SampleTestCatalogItem[],
+    instructionsByDept: Record<OrderDepartment, string>
+  ) => void;
 }
 
 export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
@@ -111,9 +127,8 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
   onConfirmOrders,
 }) => {
   const [selectedIds, setSelectedIds] = useState<string[]>(['tst-eye-1', 'tst-ent-1']);
-  const [clinicalInstruction, setClinicalInstruction] = useState(
-    'Perform objective delegated measurements per STCW Table A-I/9 and record values without issuing fit/unfit verdict (RQP-303).'
-  );
+  const [instructionsByDept, setInstructionsByDept] =
+    useState<Record<OrderDepartment, string>>(DEFAULT_DEPT_INSTRUCTIONS);
 
   const toggleId = (id: string) => {
     setSelectedIds((prev) =>
@@ -121,18 +136,32 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
     );
   };
 
+  const selectedTests = useMemo(
+    () => SAMPLE_TESTS_CATALOG.filter((t) => selectedIds.includes(t.id)),
+    [selectedIds]
+  );
+
+  const activeDepartments = useMemo(() => {
+    const ordered: OrderDepartment[] = [
+      'Eye Clinic',
+      'ENT & Audiology',
+      'Laboratory',
+      'Radiology',
+    ];
+    return ordered.filter((dept) => selectedTests.some((t) => t.department === dept));
+  }, [selectedTests]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const chosen = SAMPLE_TESTS_CATALOG.filter((t) => selectedIds.includes(t.id));
-    if (chosen.length === 0) return;
-    onConfirmOrders(chosen, clinicalInstruction.trim());
+    if (selectedTests.length === 0) return;
+    onConfirmOrders(selectedTests, instructionsByDept);
     onClose();
   };
 
   const groups: {
     key: SampleTestCatalogItem['category'];
     title: string;
-    deptLabel: string;
+    deptLabel: OrderDepartment;
     icon: React.ElementType;
   }[] = [
     { key: 'Vision', title: 'Vision & Colour Screening', deptLabel: 'Eye Clinic', icon: Eye },
@@ -146,8 +175,8 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Order Diagnostic Tests & Specialist Screening"
-      subtitle={`Seafarer: ${patientName} (${recordNo}) · Stamps electronic trail as "Tests requested"`}
+      title="Order Department Tests & Instructions"
+      subtitle={`Seafarer: ${patientName} (${recordNo}) · Write specific instructions per department`}
       maxWidthClass="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -203,31 +232,47 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
           })}
         </div>
 
-        {/* RQF-403-01 Clinical Instruction / Referral Question */}
-        <div className="rounded-xl border border-surface-border bg-white p-4 space-y-2">
-          <label
-            htmlFor="order-clinical-instruction"
-            className="block text-xs font-semibold text-ink-primary"
-          >
-            Clinical Instruction / Referral Question (RQF-403-01)
-          </label>
-          <p className="text-[11px] text-ink-muted">
-            Sent directly to the receiving department or specialist so they know what to examine for
-            — keep free of confidential diagnoses (RQP-403 §7.3).
-          </p>
-          <textarea
-            id="order-clinical-instruction"
-            rows={2}
-            value={clinicalInstruction}
-            onChange={(e) => setClinicalInstruction(e.target.value)}
-            placeholder="e.g. Deck Officer lookout candidate — record unaided/aided Snellen decimal acuity & D65 Ishihara screening..."
-            className="w-full rounded-xl border border-surface-border-strong px-3.5 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
-          />
-        </div>
+        {/* Per-Department Instructions (RQF-403-01) */}
+        {activeDepartments.length > 0 && (
+          <div className="rounded-xl border border-surface-border bg-white p-4 space-y-3.5">
+            <div>
+              <h3 className="text-xs font-semibold text-ink-primary">
+                Department Instructions / Referral Questions (RQF-403-01)
+              </h3>
+              <p className="text-[11px] text-ink-muted mt-0.5">
+                Each department receives only its own instruction below — keep free of confidential
+                diagnoses (RQP-403 §7.3).
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {activeDepartments.map((dept) => (
+                <div key={dept} className="space-y-1">
+                  <label className="block text-xs font-semibold text-navy-800">
+                    Instruction for {dept}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={instructionsByDept[dept]}
+                    onChange={(e) =>
+                      setInstructionsByDept((prev) => ({
+                        ...prev,
+                        [dept]: e.target.value,
+                      }))
+                    }
+                    placeholder={`Write examination instruction for ${dept}...`}
+                    className="w-full rounded-xl border border-surface-border-strong px-3.5 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="pt-3 border-t border-surface-border flex items-center justify-between">
           <span className="text-xs font-medium text-ink-secondary">
-            Selected: <strong>{selectedIds.length}</strong> test(s)
+            Selected: <strong>{selectedIds.length}</strong> test(s) across{' '}
+            <strong>{activeDepartments.length}</strong> department(s)
           </span>
           <div className="flex items-center gap-2.5">
             <button

@@ -116,6 +116,10 @@ const orderDraftSchema = z.object({
   scientistRemarks: z.string().max(4000).optional(),
 });
 
+const orderInstructionSchema = z.object({
+  clinicalInstruction: z.string().trim().max(2000),
+});
+
 const dbLevelSchema = z.coerce.number().min(-10).max(120);
 const audiometryBandSchema = z.object({
   hz500: dbLevelSchema,
@@ -754,6 +758,37 @@ export function registerPatientRoutes(
       'Saved Diagnostic Draft',
       String(order.record_no),
       `Saved draft findings for ${String(order.test_name)}.`
+    );
+    return { ok: true };
+  });
+
+  app.patch('/api/orders/:orderId/instruction', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['DOCTOR', 'ADMIN']);
+    if (!user) return;
+    const { orderId } = req.params as { orderId: string };
+
+    const order = db.prepare('SELECT * FROM diagnostic_orders WHERE id = ?').get(orderId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!order) return reply.code(404).send({ error: 'Diagnostic order not found.' });
+
+    const parsed = orderInstructionSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message || 'Invalid clinical instruction' });
+    }
+
+    db.prepare('UPDATE diagnostic_orders SET clinical_instruction = ? WHERE id = ?').run(
+      parsed.data.clinicalInstruction,
+      orderId
+    );
+
+    appendAudit(
+      db,
+      user.fullName,
+      user.roleTitle,
+      'Updated Referral Instruction (RQF-403-01)',
+      String(order.record_no),
+      `Updated instruction for ${String(order.department)} (${String(order.test_name)}).`
     );
     return { ok: true };
   });

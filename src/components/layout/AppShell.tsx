@@ -333,7 +333,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'Front Desk',
           items: [
-            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/front-desk', label: 'Reception', icon: UserPlus, isActive: (p) => p.startsWith('/front-desk') },
           ],
         },
@@ -345,7 +344,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'RMP Desk',
           items: [
-            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/doctor', label: 'RMP Examinations', icon: Stethoscope, isActive: (p) => p.startsWith('/doctor') },
           ],
         },
@@ -357,7 +355,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'Diagnostics',
           items: [
-            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/lab', label: 'Laboratory', icon: FlaskConical, isActive: (p) => p.startsWith('/lab') },
           ],
         },
@@ -369,7 +366,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'ENT & Audiology',
           items: [
-            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/ent', label: 'ENT & Audiology', icon: Ear, isActive: (p) => p.startsWith('/ent') },
           ],
         },
@@ -381,7 +377,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         {
           title: 'Ophthalmology & Vision',
           items: [
-            { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
             { to: '/eye', label: 'Eye Clinic', icon: Eye, isActive: (p) => p.startsWith('/eye') },
           ],
         },
@@ -392,7 +387,6 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       {
         title: 'Diagnostics',
         items: [
-          { to: '/overview', label: 'Overview', icon: LayoutDashboard, isActive: (p) => p === '/overview' },
           { to: '/radiology', label: 'Radiology', icon: ScanLine, isActive: (p) => p.startsWith('/radiology') },
         ],
       },

@@ -250,6 +250,7 @@ interface HospitalContextValue {
     draftFindings: string,
     scientistRemarks?: string
   ) => Promise<void>;
+  updateOrderInstruction: (orderId: string, clinicalInstruction: string) => Promise<void>;
   publishOrderResult: (
     orderId: string,
     publishedResult: string,
@@ -604,6 +605,14 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await refreshBootstrap();
   };
 
+  const updateOrderInstruction = async (orderId: string, clinicalInstruction: string) => {
+    await apiRequest(`/api/orders/${orderId}/instruction`, {
+      method: 'PATCH',
+      body: JSON.stringify({ clinicalInstruction }),
+    });
+    await refreshBootstrap();
+  };
+
   const publishOrderResult = async (
     orderId: string,
     publishedResult: string,
@@ -803,6 +812,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         orderTests,
         admitPatient,
         saveOrderDraft,
+        updateOrderInstruction,
         publishOrderResult,
         uploadOrderAttachment,
         recordSecondAssessment,

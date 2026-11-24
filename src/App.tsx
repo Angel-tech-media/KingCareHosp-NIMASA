@@ -78,7 +78,7 @@ export const App: React.FC = () => {
             <Route
               path="/overview"
               element={
-                <ProtectedRoute allowedRoles={['ADMIN', 'FRONT_DESK', 'DOCTOR', 'LAB', 'RADIOLOGY', 'ENT', 'EYE']}>
+                <ProtectedRoute allowedRoles={['ADMIN']}>
                   <OverviewDashboard />
                 </ProtectedRoute>
               }

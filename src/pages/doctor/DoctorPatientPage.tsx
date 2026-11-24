@@ -8,10 +8,11 @@ import {
   ShieldCheck,
   UserCheck,
   Eye,
+  Pencil,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { PageHeader, Tabs, TabItem } from '../../components/ui';
-import { OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
+import { OrderDepartment, OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
 import { RmpExaminationPanel } from './RmpExaminationPanel';
 
 type PatientChartTab = 'EXAM' | 'INVESTIGATIONS' | 'NOTES' | 'TRAIL';
@@ -20,17 +21,23 @@ export const DoctorPatientPage: React.FC = () => {
   const { recordNo } = useParams<{ recordNo: string }>();
   const {
     patients,
+    activeRole,
+    currentUser,
     startFirstAssessment,
     completeFirstAssessment,
     orderTests,
+    updateOrderInstruction,
     recordSecondAssessment,
     uploadOrderAttachment,
   } = useHospital();
 
+  const isAdmin = activeRole === 'ADMIN';
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
 
   const [activeTab, setActiveTab] = useState<PatientChartTab>('EXAM');
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editingInstructionText, setEditingInstructionText] = useState('');
 
   const [shortSummary, setShortSummary] = useState(
     patient.firstAssessmentSummary ||
@@ -77,7 +84,7 @@ export const DoctorPatientPage: React.FC = () => {
 
   const handleConfirmTestOrders = async (
     selectedTests: SampleTestCatalogItem[],
-    clinicalInstruction: string
+    instructionsByDept: Record<OrderDepartment, string>
   ) => {
     await orderTests(
       patient.id,
@@ -86,11 +93,17 @@ export const DoctorPatientPage: React.FC = () => {
         testName: t.testName,
         department: t.department,
         referenceRange: t.referenceRange,
-        clinicalInstruction,
+        clinicalInstruction: (instructionsByDept[t.department] || '').trim(),
       }))
     );
     setActiveTab('INVESTIGATIONS');
-    showToast(`Ordered ${selectedTests.length} investigation(s).`);
+    showToast(`Ordered ${selectedTests.length} investigation(s) with department instructions.`);
+  };
+
+  const handleSaveEditedInstruction = async (orderId: string) => {
+    await updateOrderInstruction(orderId, editingInstructionText.trim());
+    setEditingOrderId(null);
+    showToast('Updated RQF-403-01 instruction for receiving department.');
   };
 
   const handleSaveSecondAssessment = (e: React.FormEvent) => {
@@ -112,10 +125,10 @@ export const DoctorPatientPage: React.FC = () => {
     { id: 'EXAM', label: 'Examination' },
     {
       id: 'INVESTIGATIONS',
-      label: 'Investigations',
+      label: 'Investigations & Instructions',
       count: patient.orders.length,
     },
-    { id: 'NOTES', label: 'Clinical Notes' },
+    { id: 'NOTES', label: 'Diagnosis & Clinical Notes' },
     { id: 'TRAIL', label: 'Trail', count: patient.timeline.length },
   ];
 
@@ -131,13 +144,15 @@ export const DoctorPatientPage: React.FC = () => {
           <span>Back to Seafarer Queue</span>
         </Link>
 
-        <Link
-          to={`/nimasa/patients/${patient.recordNo}`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
-        >
-          <Eye className="w-3.5 h-3.5" aria-hidden="true" />
-          <span>NIMASA Oversight View ({patient.recordNo})</span>
-        </Link>
+        {isAdmin && (
+          <Link
+            to={`/nimasa/patients/${patient.recordNo}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
+          >
+            <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>NIMASA Oversight View ({patient.recordNo})</span>
+          </Link>
+        )}
       </div>
 
       {/* Live Toast */}
@@ -151,7 +166,7 @@ export const DoctorPatientPage: React.FC = () => {
             {feedbackToast}
           </span>
           <span className="text-slate-300 text-[11px] hidden sm:inline">
-            Stamped by Dr. Babatunde Fashola-Cole
+            Stamped by {currentUser?.fullName || 'Examining RMP'}
           </span>
         </div>
       )}
@@ -286,36 +301,40 @@ export const DoctorPatientPage: React.FC = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                to="/eye"
-                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
-              >
-                Eye Clinic
-              </Link>
-              <Link
-                to="/ent"
-                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
-              >
-                ENT &amp; Audiology
-              </Link>
-              <Link
-                to="/lab"
-                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
-              >
-                Laboratory
-              </Link>
-              <Link
-                to="/radiology"
-                className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
-              >
-                Radiology
-              </Link>
+              {isAdmin && (
+                <>
+                  <Link
+                    to="/eye"
+                    className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+                  >
+                    Eye Clinic
+                  </Link>
+                  <Link
+                    to="/ent"
+                    className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+                  >
+                    ENT &amp; Audiology
+                  </Link>
+                  <Link
+                    to="/lab"
+                    className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+                  >
+                    Laboratory
+                  </Link>
+                  <Link
+                    to="/radiology"
+                    className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas inline-flex items-center text-xs font-medium text-ink-secondary"
+                  >
+                    Radiology
+                  </Link>
+                </>
+              )}
               <button
                 type="button"
                 onClick={() => setIsOrderModalOpen(true)}
                 className="h-8 px-3.5 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold"
               >
-                + Order Tests
+                + Order Tests &amp; Instructions
               </button>
             </div>
           </div>
@@ -351,10 +370,54 @@ export const DoctorPatientPage: React.FC = () => {
                     </span>
                   </div>
 
-                  {ord.clinicalInstruction && (
-                    <div className="px-3.5 py-2.5 rounded-xl bg-primary-50/60 border border-primary-100 text-xs text-ink-secondary">
-                      <strong className="text-navy-800">Instruction (RQF-403-01):</strong>{' '}
-                      {ord.clinicalInstruction}
+                  {editingOrderId === ord.id ? (
+                    <div className="p-3.5 rounded-xl bg-primary-50/50 border border-primary-200 space-y-2.5 text-xs">
+                      <label className="block font-semibold text-navy-800">
+                        Instruction for {ord.department} (RQF-403-01)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={editingInstructionText}
+                        onChange={(e) => setEditingInstructionText(e.target.value)}
+                        placeholder={`Write examination instruction for ${ord.department} (keep free of confidential diagnoses)...`}
+                        className="w-full rounded-xl border border-surface-border-strong bg-white px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrderId(null)}
+                          className="h-8 px-3 rounded-xl border border-surface-border-strong bg-white text-xs font-medium text-ink-secondary"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditedInstruction(ord.id)}
+                          className="h-8 px-3.5 rounded-xl bg-navy-800 text-white text-xs font-semibold"
+                        >
+                          Save Instruction
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="px-3.5 py-2.5 rounded-xl bg-primary-50/60 border border-primary-100 text-xs text-ink-secondary flex items-start justify-between gap-3">
+                      <div>
+                        <strong className="text-navy-800">
+                          Instruction for {ord.department} (RQF-403-01):
+                        </strong>{' '}
+                        {ord.clinicalInstruction || 'No specific instruction added yet.'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingOrderId(ord.id);
+                          setEditingInstructionText(ord.clinicalInstruction || '');
+                        }}
+                        className="inline-flex items-center gap-1 text-primary-700 font-semibold hover:underline shrink-0"
+                      >
+                        <Pencil className="w-3 h-3" aria-hidden="true" />
+                        <span>{ord.clinicalInstruction ? 'Edit' : 'Add Instruction'}</span>
+                      </button>
                     </div>
                   )}
 
@@ -432,16 +495,16 @@ export const DoctorPatientPage: React.FC = () => {
             >
               <div>
                 <h2 className="text-sm font-semibold text-ink-primary">
-                  Confidential Clinical Note (QAF-804-01)
+                  Doctor&apos;s Confidential Diagnosis &amp; Clinical Note (QAF-804-01)
                 </h2>
                 <p className="text-xs text-ink-muted mt-0.5">
-                  Held strictly by Kingscare under QA-P-808. Hidden from NIMASA &amp; Laboratory.
+                  Strictly restricted to Examining RMP under QA-P-808. Never visible to Reception, Eye Clinic, ENT, Laboratory, Radiology, or NIMASA.
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1">
-                  Non-Clinical Stage Summary
+                  Non-Clinical Stage Summary (Timeline Status)
                 </label>
                 <input
                   type="text"
@@ -453,12 +516,13 @@ export const DoctorPatientPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1">
-                  Detailed Examination Findings
+                  Personal Clinical Diagnosis &amp; Examination Findings (Confidential)
                 </label>
                 <textarea
-                  rows={4}
+                  rows={5}
                   value={fullNote}
                   onChange={(e) => setFullNote(e.target.value)}
+                  placeholder="Record confidential clinical diagnosis, differential, history, and physical examination findings..."
                   className="w-full rounded border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
                 />
               </div>
