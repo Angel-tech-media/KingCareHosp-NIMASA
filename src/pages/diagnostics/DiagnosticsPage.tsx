@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { CieStandard, DepartmentEquipment, DiagnosticOrder } from '../../types';
-import { PageHeader, SlideOver } from '../../components/ui';
+import { PageHeader, SlideOver, ComplianceDetails } from '../../components/ui';
 
 interface DiagnosticsPageProps {
   department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic';
@@ -28,14 +28,14 @@ interface DiagnosticsPageProps {
 
 const DECIMAL_OPTIONS = ['0.1', '0.25', '0.33', '0.4', '0.5', '0.67', '0.7', '0.8', '1.0'];
 
-const CIE_OPTIONS: CieStandard[] = [
-  'CIE 1',
-  'CIE 2',
-  'CIE 3',
-  'Pending specialist',
-  'Failed',
-  'Not tested',
-];
+const CIE_LABELS: Record<CieStandard, string> = {
+  'CIE 1': 'Normal (Standard 1 — All Roles)',
+  'CIE 2': 'Standard 2 (Deck / Engine / Radio)',
+  'CIE 3': 'Standard 3 (Engine / Radio Only)',
+  'Pending specialist': 'Refer to Eye Specialist',
+  Failed: 'Below Standard',
+  'Not tested': 'Not Tested',
+};
 
 export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) => {
   const {
@@ -283,7 +283,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
     <div className="space-y-6">
       <PageHeader
         title={`${department} Orders & Result Entry`}
-        subtitle="Inspect the RMP's examination instruction, enter objective test measurements, upload reports, and publish back to the RMP."
+        subtitle="Review the doctor's instruction, record objective test measurements, attach reports, and publish results."
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <button
@@ -300,7 +300,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
 
             <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/80 border border-surface-border text-xs text-ink-secondary">
               <Lock className="w-4 h-4 text-ink-muted shrink-0" />
-              <span>RMP clinical notes restricted</span>
+              <span>Doctor&apos;s notes private</span>
             </div>
           </div>
         }
@@ -503,35 +503,25 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                 )}
               </div>
 
-              {/* Examining RMP Clinical Instruction Box (RQF-403-01) */}
-              <div className="p-4 rounded-xl bg-primary-50/70 border border-primary-200 space-y-1">
+              {/* Doctor's Examination Instruction */}
+              <div className="p-4 rounded-xl bg-primary-50/70 border border-primary-200 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-navy-800">
                   <ClipboardList className="w-4 h-4 text-primary-600" aria-hidden="true" />
-                  <span>Examining RMP Instruction (RQF-403-01)</span>
+                  <span>Doctor&apos;s Examination Instruction</span>
                 </div>
-                <p className="text-xs text-ink-primary leading-relaxed">
+                <p className="text-sm text-ink-primary leading-relaxed">
                   {selectedOrder.clinicalInstruction ||
-                    `Perform ${selectedOrder.testName} according to standard STCW Regulation I/9 protocol and submit objective values to the examining practitioner.`}
+                    `Perform ${selectedOrder.testName} and submit objective test measurements back to the examining doctor.`}
                 </p>
               </div>
 
-              {/* Confidentiality & RQP-303 Non-Interpretation Guard */}
+              {/* Department Protocol */}
               <div className="p-3.5 rounded-xl bg-surface-canvas border border-surface-border flex items-start gap-2.5 text-xs text-ink-secondary">
                 <Lock className="w-4 h-4 text-ink-muted shrink-0 mt-0.5" />
                 <span>
-                  {department === 'ENT & Audiology' || department === 'Eye Clinic' ? (
-                    <>
-                      <strong>RQP-303 §7.2.2 Delegation Rule:</strong> Support staff record objective
-                      measurements only and <strong>must not</strong> inform the seafarer whether the
-                      result passes or fails. The RMP&apos;s diagnosis remains restricted.
-                    </>
-                  ) : (
-                    <>
-                      <strong>Restricted Scope (QA-P-808):</strong> Attending physician&apos;s
-                      clinical notes and diagnosis are hidden. Only the test order, duty category,
-                      and RQF-403-01 instruction are shown.
-                    </>
-                  )}
+                  <strong>Department Protocol:</strong> Record objective test measurements only. The
+                  examining doctor&apos;s private diagnosis remains hidden, and final pass/fail
+                  outcomes are communicated by the doctor.
                 </span>
               </div>
 
@@ -539,24 +529,24 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
               <form onSubmit={handlePublishResult} className="space-y-4">
                 {department === 'Eye Clinic' && (
                   <div className="space-y-4 p-4 rounded-xl bg-surface-canvas/70 border border-surface-border">
-                    <div className="text-xs font-semibold text-ink-primary">
-                      STCW Table A-I/9 Vision &amp; Colour Measurements (RQF-603-01)
+                    <div className="text-sm font-semibold text-ink-primary">
+                      Vision &amp; Colour Screening
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="space-y-2">
                         <span className="font-semibold text-ink-secondary block">
-                          Distance Visual Acuity — Unaided (Decimal)
+                          Distance Vision — Unaided
                         </span>
                         <div className="grid grid-cols-3 gap-2">
                           {(['right', 'left', 'both'] as const).map((eye) => (
                             <div key={eye}>
-                              <label className="text-[11px] text-ink-muted capitalize block mb-1">
+                              <label className="text-xs text-ink-muted capitalize block mb-1">
                                 {eye}
                               </label>
                               <select
                                 value={unaided[eye]}
                                 onChange={(e) => setUnaided({ ...unaided, [eye]: e.target.value })}
-                                className="w-full h-9 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
+                                className="w-full h-10 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
                               >
                                 {DECIMAL_OPTIONS.map((v) => (
                                   <option key={v} value={v}>
@@ -571,18 +561,18 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
 
                       <div className="space-y-2">
                         <span className="font-semibold text-ink-secondary block">
-                          Distance Visual Acuity — Aided (Decimal)
+                          Distance Vision — Aided
                         </span>
                         <div className="grid grid-cols-3 gap-2">
                           {(['right', 'left', 'both'] as const).map((eye) => (
                             <div key={eye}>
-                              <label className="text-[11px] text-ink-muted capitalize block mb-1">
+                              <label className="text-xs text-ink-muted capitalize block mb-1">
                                 {eye}
                               </label>
                               <select
                                 value={aided[eye]}
                                 onChange={(e) => setAided({ ...aided, [eye]: e.target.value })}
-                                className="w-full h-9 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
+                                className="w-full h-10 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
                               >
                                 {DECIMAL_OPTIONS.map((v) => (
                                   <option key={v} value={v}>
@@ -605,21 +595,21 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                           type="text"
                           value={colourMethod}
                           onChange={(e) => setColourMethod(e.target.value)}
-                          className="w-full rounded-xl border border-surface-border-strong bg-white px-3 py-2 text-xs"
+                          className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs"
                         />
                       </div>
                       <div>
                         <label className="block font-semibold text-ink-secondary mb-1">
-                          Ishihara / CIE Colour Outcome
+                          Colour Vision Outcome
                         </label>
                         <select
                           value={colourCie}
                           onChange={(e) => setColourCie(e.target.value as CieStandard)}
-                          className="w-full rounded-xl border border-surface-border-strong bg-white px-3 py-2 text-xs font-medium"
+                          className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-medium"
                         >
-                          {CIE_OPTIONS.map((c) => (
+                          {(Object.keys(CIE_LABELS) as CieStandard[]).map((c) => (
                             <option key={c} value={c}>
-                              {c}
+                              {CIE_LABELS[c]}
                             </option>
                           ))}
                         </select>
@@ -634,7 +624,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                           onChange={(e) => setVisualAidsRequired(e.target.checked)}
                           className="rounded border-surface-border-strong"
                         />
-                        <span>Visual aids required</span>
+                        <span>Glasses / lenses required</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -643,7 +633,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                           onChange={(e) => setNearVisionMet(e.target.checked)}
                           className="rounded border-surface-border-strong"
                         />
-                        <span>Near vision N5/N8 met</span>
+                        <span>Near vision normal</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -652,7 +642,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                           onChange={(e) => setIntermediateVisionMet(e.target.checked)}
                           className="rounded border-surface-border-strong"
                         />
-                        <span>Intermediate met</span>
+                        <span>Intermediate vision normal</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -679,7 +669,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                           onChange={(e) => setDiplopiaAbsent(e.target.checked)}
                           className="rounded border-surface-border-strong"
                         />
-                        <span>No diplopia</span>
+                        <span>No double vision</span>
                       </label>
                     </div>
                   </div>
@@ -687,8 +677,8 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
 
                 {department === 'ENT & Audiology' && (
                   <div className="space-y-4 p-4 rounded-xl bg-surface-canvas/70 border border-surface-border">
-                    <div className="text-xs font-semibold text-ink-primary">
-                      Pure-Tone Unaided Audiometry Thresholds in dB (RQW-006)
+                    <div className="text-sm font-semibold text-ink-primary">
+                      Hearing Test Thresholds (dB)
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="space-y-2">
@@ -696,7 +686,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                         <div className="grid grid-cols-4 gap-2">
                           {(['hz500', 'hz1000', 'hz2000', 'hz3000'] as const).map((freq) => (
                             <div key={freq}>
-                              <label className="text-[10px] text-ink-muted block mb-1">
+                              <label className="text-xs text-ink-muted block mb-1">
                                 {freq.replace('hz', '')}Hz
                               </label>
                               <input
@@ -707,7 +697,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                                 onChange={(e) =>
                                   setAudioRight({ ...audioRight, [freq]: Number(e.target.value) })
                                 }
-                                className="w-full h-9 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
+                                className="w-full h-10 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
                               />
                             </div>
                           ))}
@@ -719,7 +709,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                         <div className="grid grid-cols-4 gap-2">
                           {(['hz500', 'hz1000', 'hz2000', 'hz3000'] as const).map((freq) => (
                             <div key={freq}>
-                              <label className="text-[10px] text-ink-muted block mb-1">
+                              <label className="text-xs text-ink-muted block mb-1">
                                 {freq.replace('hz', '')}Hz
                               </label>
                               <input
@@ -730,7 +720,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                                 onChange={(e) =>
                                   setAudioLeft({ ...audioLeft, [freq]: Number(e.target.value) })
                                 }
-                                className="w-full h-9 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
+                                className="w-full h-10 rounded-lg border border-surface-border-strong bg-white px-2 text-xs font-mono"
                               />
                             </div>
                           ))}
@@ -745,7 +735,7 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                         onChange={(e) => setSpeechClear(e.target.checked)}
                         className="rounded border-surface-border-strong"
                       />
-                      <span>Whispered / conversational speech test clear &amp; distinct</span>
+                      <span>Whispered &amp; conversational speech clear</span>
                     </label>
                   </div>
                 )}

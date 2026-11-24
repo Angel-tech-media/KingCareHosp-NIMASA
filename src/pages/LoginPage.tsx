@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Database, Lock, ShieldCheck } from 'lucide-react';
 import { useHospital } from '../context/HospitalContext';
+import { ComplianceDetails } from '../components/ui';
 import { RoleType } from '../types';
 
 function homePathForRole(role: RoleType): string {
@@ -169,25 +170,25 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div className="mt-14 space-y-4">
-            <p className="text-xs font-mono uppercase tracking-widest text-primary-300">
-              STCW Regulation I/9 · NIMASA Series 800
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary-300">
+              Maritime Medical Services
             </p>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white leading-snug">
-              Recognized Medical Practitioner Quality Standards System
+              Seafarer Medical Fitness Portal
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed max-w-md">
-              Statutory seafarer medical fitness examinations, diagnostic equipment register,
-              QAF-805-01 serial stock control, and role-restricted NIMASA oversight.
+              Medical fitness examinations, specialist department referrals, certificate issuance,
+              and NIMASA verification.
             </p>
           </div>
 
           {!initialized ? (
             <div className="mt-10 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 space-y-3 text-xs">
-              <div className="font-semibold text-white">Clean Clinic Setup Ready</div>
+              <div className="font-semibold text-white">Hospital Onboarding Steps</div>
               <ul className="space-y-2 text-slate-300">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-primary-300 shrink-0" />
-                  <span>1. Confirm facility &amp; create Medical Director / QSS Admin</span>
+                  <span>1. Confirm hospital details &amp; create Medical Director account</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-primary-300 shrink-0" />
@@ -195,40 +196,44 @@ export const LoginPage: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-primary-300 shrink-0" />
-                  <span>3. Create staff &amp; NIMASA Liaison logins with real passwords</span>
+                  <span>3. Issue individual logins for doctors, departments &amp; NIMASA</span>
                 </li>
               </ul>
             </div>
           ) : (
-            <dl className="mt-10 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <dt className="text-slate-400">Recognition Certificate</dt>
-                <dd className="font-mono font-semibold text-white mt-0.5">
-                  {practice.certificateNo}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Recognition Status</dt>
-                <dd className="font-semibold text-emerald-300 mt-0.5">
-                  {practice.status} · Valid to {practice.expiresOn}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Statutory Basis</dt>
-                <dd className="text-slate-200 mt-0.5">STCW 1978 / 2025 Regs.</dd>
-              </div>
-              <div>
-                <dt className="text-slate-400">Data Protection</dt>
-                <dd className="text-slate-200 mt-0.5">NDPA 2023 · QA-P-808</dd>
-              </div>
-            </dl>
+            <div className="mt-10 space-y-3">
+              <dl className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-5 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <dt className="text-slate-400">Accreditation Certificate</dt>
+                  <dd className="font-mono font-semibold text-white mt-0.5">
+                    {practice.certificateNo}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">Accreditation Status</dt>
+                  <dd className="font-semibold text-emerald-300 mt-0.5">
+                    {practice.status} · Valid to {practice.expiresOn}
+                  </dd>
+                </div>
+              </dl>
+
+              <ComplianceDetails
+                tone="dark"
+                label="View regulatory & privacy standards"
+                items={[
+                  { code: 'STCW Reg. I/9', description: 'International seafarer medical fitness standards' },
+                  { code: 'NIMASA Series 800', description: 'Recognized Medical Practitioner quality system' },
+                  { code: 'NDPA 2023 · QA-P-808', description: 'Medical confidentiality & outcome-only sharing' },
+                ]}
+              />
+            </div>
           )}
         </div>
 
-        <div className="mt-10 pt-6 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+        <div className="mt-10 pt-6 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
           <span className="inline-flex items-center gap-1.5">
             <Lock className="w-3.5 h-3.5" aria-hidden="true" />
-            All authentication &amp; determinations logged
+            All sign-ins &amp; fitness decisions logged
           </span>
           <span>Kingscare × NIMASA</span>
         </div>
@@ -419,9 +424,9 @@ export const LoginPage: React.FC = () => {
         ) : (
           <div className="w-full max-w-md rounded-2xl bg-white/95 backdrop-blur-md border border-white shadow-card-hover p-8 space-y-6">
             <div>
-              <h2 className="text-xl font-semibold text-ink-primary tracking-tight">Sign in</h2>
-              <p className="text-xs text-ink-muted mt-1">
-                Enter your registered official email and password to access your authorized workspace.
+              <h2 className="text-2xl font-semibold text-ink-primary tracking-tight">Sign in</h2>
+              <p className="text-sm text-ink-muted mt-1">
+                Enter your official email and password to open your workspace.
               </p>
             </div>
 
@@ -491,8 +496,8 @@ export const LoginPage: React.FC = () => {
               </button>
             </form>
 
-            <p className="pt-4 border-t border-surface-border text-[11px] text-ink-muted">
-              Individual user accounts only (RQP-404 §5). New accounts are issued by your Medical Director / QSS Admin.
+            <p className="pt-4 border-t border-surface-border text-xs text-ink-muted">
+              Individual staff accounts only. Contact your Medical Director for account access.
             </p>
           </div>
         )}

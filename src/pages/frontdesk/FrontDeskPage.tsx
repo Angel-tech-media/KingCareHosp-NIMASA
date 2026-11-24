@@ -149,6 +149,11 @@ export const FrontDeskPage: React.FC = () => {
                     <span className="font-mono text-xs text-primary-700">
                       {patient.recordNo}
                     </span>
+                    {rmp?.entryExam && (
+                      <span className="px-2 py-0.5 rounded bg-primary-50 text-navy-800 border border-primary-200 text-xs font-medium">
+                        Entry / Recruit
+                      </span>
+                    )}
                     {rmp?.isUnder18 && (
                       <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-medium">
                         Under 18

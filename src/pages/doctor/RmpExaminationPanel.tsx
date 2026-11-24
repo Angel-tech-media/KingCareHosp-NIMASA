@@ -10,6 +10,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
+import { ComplianceDetails } from '../../components/ui';
 import {
   CieStandard,
   FitnessDetermination,
@@ -84,18 +85,16 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
   const criteriaCompleted = Object.values(criteria).slice(0, 5).every(Boolean);
 
   const steps = [
-    { num: 1 as const, label: 'Vision & Hearing', code: 'RQF-603-01', done: true },
-    { num: 2 as const, label: 'Fitness Criteria', code: 'RQF-602-01', done: criteriaCompleted },
+    { num: 1 as const, label: 'Vision & Hearing', done: true },
+    { num: 2 as const, label: 'Fitness Checklist', done: criteriaCompleted },
     {
       num: 3 as const,
-      label: 'Determination',
-      code: 'RQP-605',
+      label: 'Fitness Decision',
       done: rmp.determination !== 'Pending',
     },
     {
       num: 4 as const,
-      label: 'Certificate',
-      code: 'QAF-805-01',
+      label: 'Issue Certificate',
       done: Boolean(rmp.issuedCertificate) || rmp.determination === 'Not fit',
     },
   ];
@@ -185,13 +184,13 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
                 >
                   <div className="min-w-0">
                     <div
-                      className={`text-[10px] font-mono ${
+                      className={`text-xs ${
                         active ? 'text-blue-200' : 'text-ink-muted'
                       }`}
                     >
-                      Step {s.num} · {s.code}
+                      Step {s.num}
                     </div>
-                    <div className="text-xs font-semibold truncate mt-0.5">{s.label}</div>
+                    <div className="text-sm font-semibold truncate mt-0.5">{s.label}</div>
                   </div>
                   {s.done && !active && (
                     <Check
@@ -482,10 +481,10 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
           <div className="space-y-5">
             <div>
               <h3 className="text-base font-semibold text-ink-primary">
-                Section A-I/9.2 Statutory Fitness Criteria
+                Medical Fitness Checklist
               </h3>
               <p className="text-xs text-ink-muted mt-0.5">
-                Confirm each statutory criterion assessed against the seafarer&apos;s actual duties.
+                Confirm each clinical fitness requirement against the seafarer&apos;s shipboard duties.
               </p>
             </div>
 
@@ -494,27 +493,27 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
                 [
                   [
                     'physicalCapabilityBasicTraining',
-                    'A-I/9.2.1 · Physical capability for basic training & breathing apparatus (A-VI/1.2)',
+                    'Physically able to complete safety training and use breathing apparatus',
                   ],
                   [
                     'hearingAndSpeechAdequate',
-                    'A-I/9.2.2 · Adequate hearing & speech to communicate and detect audible alarms',
+                    'Adequate hearing and speech to communicate clearly and detect alarms',
                   ],
                   [
                     'noConditionPreventingDuties',
-                    'A-I/9.2.3 · No condition preventing safe routine & emergency duties during validity',
+                    'No medical condition preventing safe routine or emergency duties at sea',
                   ],
                   [
                     'noConditionAggravatedBySea',
-                    'A-I/9.2.4 · Free from condition likely to be aggravated by sea or endanger others',
+                    'No condition likely to worsen at sea or endanger others on board',
                   ],
                   [
                     'noImpairingMedication',
-                    'A-I/9.2.5 · Not taking medication impairing judgement, balance or safe performance',
+                    'Not taking medication that impairs alertness, balance, or judgement',
                   ],
                   [
                     'fitForLookout',
-                    'A-I/9.7.3.6 · Fit for lookout duties (requires Deck Table A-I/9 compliance)',
+                    'Meets full vision and colour standards for bridge lookout duties',
                   ],
                 ] as const
               ).map(([key, label]) => (
@@ -632,13 +631,13 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
             )}
 
             {(determination === 'Fit with limitation' || determination === 'Not fit') && (
-              <div className="p-4 rounded bg-amber-50/70 border border-amber-200 space-y-2 text-xs text-amber-950">
+              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2 text-xs text-amber-950">
                 <div className="font-semibold">
-                  Mandatory Right of Review Notice (QAF-804-02)
+                  Right of Appeal Notice
                 </div>
                 <p>
-                  Seafarer has <strong>21 days</strong> to apply on <strong>QAF-806-01</strong> for
-                  independent referee review (decision within 30 days; records released within 3 working days).
+                  Seafarer has <strong>21 days</strong> to request an independent medical referee
+                  review (decision within 30 days).
                 </p>
                 <label className="inline-flex items-center gap-2 font-medium cursor-pointer">
                   <input
@@ -647,7 +646,7 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
                     onChange={(e) => setReviewNoticeSigned(e.target.checked)}
                     className="h-4 w-4 rounded border-amber-400 text-amber-700"
                   />
-                  QAF-804-02 handed personally &amp; signed receipt copy retained
+                  Appeal rights notice handed to seafarer &amp; signed receipt retained
                 </label>
               </div>
             )}
@@ -678,10 +677,10 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
           <div className="space-y-5">
             <div>
               <h3 className="text-base font-semibold text-ink-primary">
-                STCW Medical Certificate Issue (QAF-805-01 + RQF-701-01)
+                Issue Medical Fitness Certificate
               </h3>
               <p className="text-xs text-ink-muted mt-0.5">
-                Requires 2nd-person verification and seafarer signature on the supplement.
+                Requires second-person verification and the seafarer&apos;s signature before release.
               </p>
             </div>
 
@@ -810,12 +809,12 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div>
                     <label className="block font-medium text-ink-secondary mb-1">
-                      Blank Serial (RQR-702-01)
+                      Certificate Serial Number
                     </label>
                     <select
                       value={selectedSerial}
                       onChange={(e) => setSelectedSerial(e.target.value)}
-                      className="w-full h-9 rounded border border-surface-border-strong px-2.5 font-mono text-xs bg-surface-card"
+                      className="w-full h-10 rounded-lg border border-surface-border-strong px-2.5 font-mono text-xs bg-surface-card"
                     >
                       {availableBlanks.map((b) => (
                         <option key={b.serialNo} value={b.serialNo}>
@@ -827,12 +826,12 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
 
                   <div>
                     <label className="block font-medium text-ink-secondary mb-1">
-                      Validity (Max {rmp.isUnder18 ? '12 mo · Under 18' : '24 mo'})
+                      Validity Period (Max {rmp.isUnder18 ? '12 mo · Under 18' : '24 mo'})
                     </label>
                     <select
                       value={validityMonths}
                       onChange={(e) => setValidityMonths(Number(e.target.value))}
-                      className="w-full h-9 rounded border border-surface-border-strong px-2.5 text-xs bg-surface-card"
+                      className="w-full h-10 rounded-lg border border-surface-border-strong px-2.5 text-xs bg-surface-card"
                     >
                       <option value={6}>6 Months (Time-limited)</option>
                       <option value={12}>
@@ -846,13 +845,13 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
 
                   <div>
                     <label className="block font-medium text-ink-secondary mb-1">
-                      2nd-Person Check (RQC-701-01)
+                      Verified By (Second Staff Check)
                     </label>
                     <input
                       type="text"
                       value={secondChecker}
                       onChange={(e) => setSecondChecker(e.target.value)}
-                      className="w-full h-9 rounded border border-surface-border-strong px-2.5 text-xs"
+                      className="w-full h-10 rounded-lg border border-surface-border-strong px-2.5 text-xs"
                     />
                   </div>
                 </div>
@@ -864,8 +863,17 @@ export const RmpExaminationPanel: React.FC<Props> = ({ patient, onFeedback }) =>
                     onChange={(e) => setSeafarerSigned(e.target.checked)}
                     className="h-4 w-4 rounded border-surface-border-strong text-primary-600"
                   />
-                  Seafarer signed Supplement RQF-701-01 confirming content &amp; right of review
+                  Seafarer signed the certificate &amp; appeal rights summary
                 </label>
+
+                <ComplianceDetails
+                  label="View certificate statutory form codes"
+                  items={[
+                    { code: 'QAF-805-01', description: 'STCW Seafarer Medical Fitness Certificate' },
+                    { code: 'RQF-701-01', description: 'Signed seafarer supplement & appeal summary' },
+                    { code: 'RQR-702-01', description: 'Serial stock register reconciliation' },
+                  ]}
+                />
 
                 <div className="pt-2 flex items-center justify-between">
                   <button

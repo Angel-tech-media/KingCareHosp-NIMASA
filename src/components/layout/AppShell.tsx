@@ -253,7 +253,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             },
             {
               to: '/admin/qss',
-              label: 'Recognition & Stock',
+              label: 'Certificates & Stock',
               icon: ShieldCheck,
               isActive: (p) => p.startsWith('/admin/qss'),
             },
@@ -265,7 +265,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             },
             {
               to: '/admin/governance',
-              label: 'Audit & CAPA',
+              label: 'Quality & Reviews',
               icon: ShieldAlert,
               isActive: (p) => p.startsWith('/admin/governance'),
             },
@@ -289,7 +289,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             },
             {
               to: '/doctor',
-              label: 'RMP Examinations',
+              label: 'Medical Examinations',
               icon: Stethoscope,
               isActive: (p) => p.startsWith('/doctor'),
             },
@@ -342,9 +342,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
     if (role === 'DOCTOR') {
       return [
         {
-          title: 'RMP Desk',
+          title: 'Doctor Workspace',
           items: [
-            { to: '/doctor', label: 'RMP Examinations', icon: Stethoscope, isActive: (p) => p.startsWith('/doctor') },
+            { to: '/doctor', label: 'Medical Examinations', icon: Stethoscope, isActive: (p) => p.startsWith('/doctor') },
           ],
         },
       ];
@@ -424,11 +424,11 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
             className="w-9 h-9 object-contain shrink-0"
           />
           <div className="leading-tight min-w-0">
-            <div className="text-[15px] font-bold tracking-tight text-navy-800 truncate">
+            <div className="text-base font-bold tracking-tight text-navy-800 truncate">
               Kingscare
             </div>
-            <div className="text-[11px] text-ink-muted truncate">
-              STCW Reg. I/9 · Abuja
+            <div className="text-xs text-ink-muted truncate">
+              Maritime Clinic · Abuja
             </div>
           </div>
         </Link>
@@ -438,7 +438,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
       <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-5 space-y-6">
         {sections.map((section) => (
           <div key={section.title}>
-            <div className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted/80">
+            <div className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-ink-muted/80">
               {section.title}
             </div>
             <ul className="space-y-1">
@@ -450,7 +450,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                     <Link
                       to={item.to}
                       aria-current={active ? 'page' : undefined}
-                      className={`group flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] transition-all ${
+                      className={`group flex items-center gap-3 h-11 px-3.5 rounded-xl text-sm transition-all ${
                         active
                           ? 'bg-primary-50 text-navy-800 font-semibold'
                           : 'text-ink-muted font-medium hover:bg-surface-canvas hover:text-ink-primary'
@@ -467,7 +467,7 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       <span className="flex-1 truncate">{item.label}</span>
                       {typeof item.badge === 'number' && (
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[11px] font-mono tabular-nums ${
+                          className={`px-2 py-0.5 rounded-full text-xs font-mono tabular-nums ${
                             active
                               ? 'bg-white text-navy-800 font-semibold'
                               : 'bg-surface-canvas text-ink-muted'
@@ -490,9 +490,9 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         <div className="rounded-xl bg-surface-canvas/90 border border-surface-border/70 px-3.5 py-2.5">
           <div className="flex items-center gap-2 text-xs font-medium text-ink-primary">
             <span aria-hidden="true" className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-            <span>Practice Active</span>
+            <span>Clinic Active</span>
           </div>
-          <div className="text-[11px] font-mono text-ink-muted mt-0.5">
+          <div className="text-xs font-mono text-ink-muted mt-0.5">
             {practice.certificateNo}
           </div>
         </div>
@@ -563,8 +563,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
                       setSearchQuery(e.target.value);
                       setSearchFocused(true);
                     }}
-                    placeholder="Search seafarer, KC- record, or certificate..."
-                    className="w-full bg-transparent text-xs text-ink-primary placeholder:text-ink-muted focus:outline-none"
+                    placeholder="Search seafarer, record, or certificate..."
+                    className="w-full bg-transparent text-sm text-ink-primary placeholder:text-ink-muted focus:outline-none"
                   />
                 </div>
 
@@ -728,8 +728,8 @@ export const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) 
         </main>
 
         <footer className="border-t border-surface-border/70 bg-white/60 backdrop-blur-sm">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 text-[11px] text-ink-muted text-center sm:text-left">
-            {practice.practiceName} · {practice.address} · STCW Reg. I/9 Recognized Practice
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3.5 text-xs text-ink-muted text-center sm:text-left">
+            {practice.practiceName} · {practice.address} · Accredited Maritime Medical Centre
           </div>
         </footer>
       </div>

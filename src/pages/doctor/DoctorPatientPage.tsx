@@ -11,7 +11,7 @@ import {
   Pencil,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
-import { PageHeader, Tabs, TabItem } from '../../components/ui';
+import { PageHeader, Tabs, TabItem, ComplianceDetails } from '../../components/ui';
 import { OrderDepartment, OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
 import { RmpExaminationPanel } from './RmpExaminationPanel';
 
@@ -202,6 +202,12 @@ export const DoctorPatientPage: React.FC = () => {
               </span>
               <span>·</span>
               <span>{rmp?.category || 'Seafarer'}</span>
+              {rmp?.entryExam && (
+                <>
+                  <span>·</span>
+                  <span className="text-navy-800 font-semibold">Entry / Recruit Exam</span>
+                </>
+              )}
               <span>·</span>
               <span>
                 {patient.gender} · DOB {patient.dob} · {rmp?.nationality || 'Nigerian'}
@@ -373,13 +379,13 @@ export const DoctorPatientPage: React.FC = () => {
                   {editingOrderId === ord.id ? (
                     <div className="p-3.5 rounded-xl bg-primary-50/50 border border-primary-200 space-y-2.5 text-xs">
                       <label className="block font-semibold text-navy-800">
-                        Instruction for {ord.department} (RQF-403-01)
+                        Instruction for {ord.department}
                       </label>
                       <textarea
                         rows={2}
                         value={editingInstructionText}
                         onChange={(e) => setEditingInstructionText(e.target.value)}
-                        placeholder={`Write examination instruction for ${ord.department} (keep free of confidential diagnoses)...`}
+                        placeholder={`Write examination instruction for ${ord.department} (keep confidential diagnoses private)...`}
                         className="w-full rounded-xl border border-surface-border-strong bg-white px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-600"
                       />
                       <div className="flex items-center justify-end gap-2">
@@ -403,7 +409,7 @@ export const DoctorPatientPage: React.FC = () => {
                     <div className="px-3.5 py-2.5 rounded-xl bg-primary-50/60 border border-primary-100 text-xs text-ink-secondary flex items-start justify-between gap-3">
                       <div>
                         <strong className="text-navy-800">
-                          Instruction for {ord.department} (RQF-403-01):
+                          Instruction for {ord.department}:
                         </strong>{' '}
                         {ord.clinicalInstruction || 'No specific instruction added yet.'}
                       </div>
@@ -494,23 +500,23 @@ export const DoctorPatientPage: React.FC = () => {
               className="p-5 rounded border border-surface-border bg-surface-card space-y-4"
             >
               <div>
-                <h2 className="text-sm font-semibold text-ink-primary">
-                  Doctor&apos;s Confidential Diagnosis &amp; Clinical Note (QAF-804-01)
+                <h2 className="text-base font-semibold text-ink-primary">
+                  Doctor&apos;s Diagnosis &amp; Clinical Notes
                 </h2>
                 <p className="text-xs text-ink-muted mt-0.5">
-                  Strictly restricted to Examining RMP under QA-P-808. Never visible to Reception, Eye Clinic, ENT, Laboratory, Radiology, or NIMASA.
+                  Private to the examining doctor — never visible to Reception, Eye Clinic, ENT, Laboratory, Radiology, or NIMASA.
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1">
-                  Non-Clinical Stage Summary (Timeline Status)
+                  Stage Summary (Non-Clinical Status)
                 </label>
                 <input
                   type="text"
                   value={shortSummary}
                   onChange={(e) => setShortSummary(e.target.value)}
-                  className="w-full h-9 rounded border border-surface-border-strong px-3 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  className="w-full h-10 rounded-xl border border-surface-border-strong px-3 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
                 />
               </div>
 
@@ -523,88 +529,87 @@ export const DoctorPatientPage: React.FC = () => {
                   value={fullNote}
                   onChange={(e) => setFullNote(e.target.value)}
                   placeholder="Record confidential clinical diagnosis, differential, history, and physical examination findings..."
-                  className="w-full rounded border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
                 />
               </div>
 
               <button
                 type="submit"
-                className="h-9 px-4 rounded bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
+                className="h-10 px-4 rounded-xl bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
               >
-                Save Clinical Note
+                Save Diagnosis &amp; Note
               </button>
             </form>
 
             <form
               onSubmit={handleSaveSecondAssessment}
-              className="p-5 rounded border border-surface-border bg-surface-card space-y-3"
+              className="p-5 rounded-2xl border border-surface-border bg-surface-card space-y-3"
             >
-              <h2 className="text-sm font-semibold text-ink-primary">
-                Post-Referral Review Note (RQP-604)
+              <h2 className="text-base font-semibold text-ink-primary">
+                Follow-Up Review Note
               </h2>
               <textarea
                 rows={3}
                 value={secondNote}
                 onChange={(e) => setSecondNote(e.target.value)}
-                className="w-full rounded border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
               />
               <button
                 type="submit"
-                className="h-9 px-4 rounded border border-surface-border-strong bg-surface-card hover:bg-surface-subtle text-xs font-semibold text-ink-primary transition-colors"
+                className="h-10 px-4 rounded-xl border border-surface-border-strong bg-surface-card hover:bg-surface-subtle text-xs font-semibold text-ink-primary transition-colors"
               >
-                Save Post-Referral Review
+                Save Follow-Up Review
               </button>
             </form>
           </div>
 
           <div className="lg:col-span-5">
-            <div className="p-5 rounded border border-surface-border bg-surface-card space-y-3">
+            <div className="p-5 rounded-2xl border border-surface-border bg-surface-card space-y-3.5">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-ink-primary flex items-center gap-2">
+                <h2 className="text-base font-semibold text-ink-primary flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600" aria-hidden="true" />
-                  Record Completeness (RQC-801-01)
+                  Examination Checklist
                 </h2>
-                <span className="text-[11px] font-mono text-ink-muted">RQP-801</span>
               </div>
               <p className="text-xs text-ink-muted">
-                Checked independently within 1 working day for Not Fit / Limited cases (5 days for Fit).
+                Verify all required clinical steps are complete before closing the chart.
               </p>
               <ul className="divide-y divide-surface-border text-xs">
                 {[
                   {
-                    label: '1. ID copy & live day photograph (RQF-601-01)',
+                    label: '1. Photo ID & live photograph verified',
                     done: Boolean(rmp?.idVerifiedOriginal && rmp?.photoCaptured),
                   },
                   {
-                    label: '2. Signed health declaration (RQF-601-02)',
+                    label: '2. Health declaration signed',
                     done: Boolean(rmp?.healthDeclarationSigned),
                   },
                   {
-                    label: '3. Duties & department statement (RQF-503-01)',
+                    label: '3. Shipboard role & duties recorded',
                     done: Boolean(rmp?.category),
                   },
                   {
-                    label: '4. Examination declarations (QAF-804-01 / RQF-602-01)',
+                    label: '4. Medical fitness criteria confirmed',
                     done: Boolean(rmp?.statutoryCriteria),
                   },
                   {
-                    label: '5. Vision, colour & audiometry signed (RQF-603-01)',
+                    label: '5. Vision, colour & hearing recorded',
                     done: Boolean(rmp?.visionHearing),
                   },
                   {
-                    label: '6. Investigation / specialist reports filed',
+                    label: '6. Department test results published',
                     done: patient.orders.every((o) => o.status === 'Published'),
                   },
                   {
-                    label: '7. Determination check complete (RQC-605-01)',
+                    label: '7. Final fitness decision recorded',
                     done: rmp?.determination !== 'Pending',
                   },
                   {
-                    label: '8. Right of review notice (QAF-804-02)',
+                    label: '8. Appeal rights notice issued (if limited/unfit)',
                     done: rmp?.determination === 'Fit' || Boolean(rmp?.rightOfReview),
                   },
                   {
-                    label: '9. Certificate & supplement copies (QAF-805-01)',
+                    label: '9. Medical certificate issued',
                     done:
                       rmp?.determination === 'Not fit' || Boolean(rmp?.issuedCertificate),
                   },
@@ -612,7 +617,7 @@ export const DoctorPatientPage: React.FC = () => {
                   <li key={row.label} className="py-2.5 flex items-center justify-between gap-2">
                     <span className="text-ink-secondary">{row.label}</span>
                     <span
-                      className={`text-[11px] font-semibold shrink-0 ${
+                      className={`text-xs font-semibold shrink-0 ${
                         row.done ? 'text-emerald-700' : 'text-amber-700'
                       }`}
                     >
@@ -621,6 +626,17 @@ export const DoctorPatientPage: React.FC = () => {
                   </li>
                 ))}
               </ul>
+
+              <ComplianceDetails
+                label="View NIMASA audit form codes"
+                items={[
+                  { code: 'RQF-601-01 / 02', description: 'Identity gate & health declaration' },
+                  { code: 'QAF-804-01', description: 'Confidential examination record' },
+                  { code: 'RQF-403-01', description: 'Department & specialist referral instruction' },
+                  { code: 'QAF-804-02', description: 'Right of review notification' },
+                  { code: 'QAF-805-01', description: 'STCW Seafarer Medical Certificate' },
+                ]}
+              />
             </div>
           </div>
         </div>

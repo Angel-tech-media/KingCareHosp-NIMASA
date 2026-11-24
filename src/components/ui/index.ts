@@ -7,3 +7,4 @@ export { PageHeader } from './PageHeader';
 export { Tabs } from './Tabs';
 export type { TabItem } from './Tabs';
 export { SlideOver } from './SlideOver';
+export { ComplianceDetails } from './ComplianceDetails';

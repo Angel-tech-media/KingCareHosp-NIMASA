@@ -34,7 +34,7 @@ export function Tabs<T extends string>({
             role="tab"
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
-            className={`px-3.5 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all inline-flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all inline-flex items-center gap-2 ${
               selected
                 ? 'bg-navy-800 text-white shadow-sm'
                 : 'text-ink-muted hover:text-ink-primary hover:bg-surface-canvas/80'
@@ -43,7 +43,7 @@ export function Tabs<T extends string>({
             <span>{tab.label}</span>
             {typeof tab.count === 'number' && (
               <span
-                className={`text-[11px] px-1.5 py-0.5 rounded-full tabular-nums ${
+                className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${
                   selected
                     ? 'bg-white/20 text-white font-semibold'
                     : 'bg-surface-subtle text-ink-muted font-medium'

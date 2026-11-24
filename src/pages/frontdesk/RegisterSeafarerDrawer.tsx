@@ -3,7 +3,7 @@ import { AlertTriangle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { IdDocumentType, SeafarerCategory } from '../../types';
 import { calculateAgeYears } from '../../data/mockRmpData';
-import { SlideOver } from '../../components/ui';
+import { SlideOver, ComplianceDetails } from '../../components/ui';
 
 const CATEGORIES: SeafarerCategory[] = [
   'Deck (Master / Officer / Lookout)',
@@ -54,6 +54,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
   const [photoCaptured, setPhotoCaptured] = useState(true);
 
   // Step 2: Duties & History
+  const [entryExam, setEntryExam] = useState<boolean>(false);
   const [category, setCategory] = useState<SeafarerCategory>(
     'Deck (Master / Officer / Lookout)'
   );
@@ -117,6 +118,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
         category,
         lookoutRequired,
         previousCertNo: previousCertNo.trim() || undefined,
+        entryExam,
         priorityBasis,
         healthDeclarationSigned,
       });
@@ -147,7 +149,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
       onClose={handleClose}
       widthClass="max-w-xl"
       title="Register Seafarer"
-      subtitle="Identity gate, shipboard duties statement, and NDPA 2023 consent"
+      subtitle="Verify photo ID, record shipboard role, and capture privacy consent"
       footer={
         <>
           {step > 1 ? (
@@ -351,7 +353,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
 
           <div className="pt-2 border-t border-surface-border space-y-3">
             <div className="text-xs font-semibold text-ink-primary">
-              Original Photographic Identification (RQP-601 §7.2)
+              Photo Identification
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <select
@@ -406,10 +408,32 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
         <div className="space-y-4">
           <div>
             <label
+              htmlFor="fd-exam-type"
+              className="block text-xs font-medium text-ink-secondary mb-1.5"
+            >
+              Examination Type
+            </label>
+            <select
+              id="fd-exam-type"
+              value={entryExam ? 'ENTRY' : 'SERVING'}
+              onChange={(e) => setEntryExam(e.target.value === 'ENTRY')}
+              className="w-full h-10 rounded border border-surface-border-strong bg-surface-card px-3 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+            >
+              <option value="ENTRY">
+                Entry / Recruit Examination (Starting a Career at Sea)
+              </option>
+              <option value="SERVING">
+                Periodic / Renewal Examination (Serving Seafarer)
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label
               htmlFor="fd-category"
               className="block text-xs font-medium text-ink-secondary mb-1.5"
             >
-              Department &amp; Duties Category (RQF-503-01)
+              Shipboard Role &amp; Department
             </label>
             <select
               id="fd-category"
@@ -443,7 +467,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
               <strong className="text-ink-primary block">
                 Lookout duties required
               </strong>
-              Applies Table A-I/9 Deck distance, near, and colour vision standards with zero discretion.
+              Requires full deck distance, near, and colour vision standards.
             </span>
           </label>
 
@@ -472,7 +496,7 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
               htmlFor="fd-priority"
               className="block text-xs font-medium text-ink-secondary mb-1.5"
             >
-              Extended or Urgent-Case Priority (RQP-703)
+              Scheduling Priority
             </label>
             <select
               id="fd-priority"
@@ -487,12 +511,12 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
               }
               className="w-full h-10 rounded border border-surface-border-strong bg-surface-card px-3 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
             >
-              <option value="None">Standard examination</option>
+              <option value="None">Routine Scheduling (Normal)</option>
               <option value="Voyage Extension (Reg. I/9.6)">
-                Voyage Extension (Reg. I/9.6 · Priority 2-day exam)
+                Voyage Extension (Priority 2-day exam)
               </option>
               <option value="NIMASA Urgent Permission (Reg. I/9.7)">
-                NIMASA Urgent Permission (Reg. I/9.7 · Priority 2-day exam)
+                NIMASA Urgent Approval (Priority 2-day exam)
               </option>
             </select>
           </div>
@@ -563,9 +587,9 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
             />
             <span>
               <strong className="text-ink-primary block">
-                Health Declaration signed (RQF-601-02)
+                Health Declaration signed
               </strong>
-              Completed privately by the seafarer and passed sealed directly to the examining practitioner.
+              Completed privately by the seafarer and passed directly to the examining doctor.
             </span>
           </label>
 
@@ -579,13 +603,22 @@ export const RegisterSeafarerDrawer: React.FC<RegisterSeafarerDrawerProps> = ({
               />
               <span>
                 <strong className="text-ink-primary block">
-                  NDPA 2023 &amp; Outcome-Only Consent
+                  Privacy &amp; Outcome-Sharing Consent
                 </strong>
-                Seafarer informed of the examination process, right of review, and that company/Agency
-                receive fitness outcome only without clinical details.
+                Seafarer agrees that the company and NIMASA receive fitness outcome only — never medical notes or diagnoses.
               </span>
             </label>
           )}
+
+          <ComplianceDetails
+            label="View registration form references"
+            items={[
+              { code: 'RQP-601', description: 'Original photo ID & minimum age 16 check' },
+              { code: 'RQF-503-01', description: 'Shipboard duties & lookout declaration' },
+              { code: 'RQF-601-02', description: 'Confidential seafarer health declaration' },
+              { code: 'NDPA 2023', description: 'Outcome-only disclosure consent' },
+            ]}
+          />
         </div>
       )}
     </SlideOver>

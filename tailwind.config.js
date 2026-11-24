@@ -10,6 +10,15 @@ export default {
         sans: ['"IBM Plex Sans"', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
+      fontSize: {
+        xs: ['0.875rem', { lineHeight: '1.35rem' }],
+        sm: ['0.96875rem', { lineHeight: '1.475rem' }],
+        base: ['1.0625rem', { lineHeight: '1.6rem' }],
+        lg: ['1.2rem', { lineHeight: '1.75rem' }],
+        xl: ['1.375rem', { lineHeight: '1.875rem' }],
+        '2xl': ['1.625rem', { lineHeight: '2.1rem' }],
+        '3xl': ['2rem', { lineHeight: '2.45rem' }],
+      },
       colors: {
         brand: {
           50: '#EFF6FE',

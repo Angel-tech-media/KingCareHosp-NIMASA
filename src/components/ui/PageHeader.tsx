@@ -13,11 +13,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
 }) => (
   <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-1">
     <div className="min-w-0">
-      <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-ink-primary">
+      <h1 className="text-2xl sm:text-[28px] leading-tight font-semibold tracking-tight text-ink-primary">
         {title}
       </h1>
       {subtitle && (
-        <div className="text-sm text-ink-muted mt-1">{subtitle}</div>
+        <div className="text-sm text-ink-muted mt-1.5">{subtitle}</div>
       )}
     </div>
     {actions && (

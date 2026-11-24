@@ -99,13 +99,13 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
 
 const DEFAULT_DEPT_INSTRUCTIONS: Record<OrderDepartment, string> = {
   'Eye Clinic':
-    'Record unaided & aided Snellen decimal acuity, D65 Ishihara colour screening, visual fields, and night vision without issuing fit/unfit verdict (RQP-303).',
+    'Record unaided & aided distance vision, Ishihara colour screening, visual fields, and night vision.',
   'ENT & Audiology':
-    'Perform pure-tone unaided audiometry (500–3000 Hz) for both ears and speech clarity check; record objective dB thresholds only (RQP-303).',
+    'Perform unaided hearing test (500–3000 Hz) for both ears and check speech clarity.',
   Laboratory:
-    'Collect labelled specimen after verifying seafarer ID and publish quantitative analytical values with reference ranges.',
+    'Collect labelled specimen after verifying photo ID and publish lab results with reference ranges.',
   Radiology:
-    'Perform requested imaging study after verifying seafarer ID, record objective radiological findings, and attach report/film.',
+    'Perform requested imaging study after verifying photo ID, record findings, and attach report/film.',
 };
 
 interface OrderTestsModalProps {
@@ -232,16 +232,16 @@ export const OrderTestsModal: React.FC<OrderTestsModalProps> = ({
           })}
         </div>
 
-        {/* Per-Department Instructions (RQF-403-01) */}
+        {/* Per-Department Instructions */}
         {activeDepartments.length > 0 && (
           <div className="rounded-xl border border-surface-border bg-white p-4 space-y-3.5">
             <div>
-              <h3 className="text-xs font-semibold text-ink-primary">
-                Department Instructions / Referral Questions (RQF-403-01)
+              <h3 className="text-sm font-semibold text-ink-primary">
+                Instructions for Receiving Departments
               </h3>
-              <p className="text-[11px] text-ink-muted mt-0.5">
-                Each department receives only its own instruction below — keep free of confidential
-                diagnoses (RQP-403 §7.3).
+              <p className="text-xs text-ink-muted mt-0.5">
+                Each department receives only its own instruction below — keep confidential
+                diagnoses private.
               </p>
             </div>
 
