@@ -517,18 +517,55 @@ export const DoctorPatientPage: React.FC = () => {
                     </div>
                   )}
 
+                  {ord.attachmentName && ord.attachmentMime?.startsWith('image/') && (
+                    <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+                      <div className="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2 text-xs text-slate-200">
+                        <span className="font-medium">
+                          {ord.department === 'Radiology'
+                            ? `Digital X-Ray Film — ${ord.attachmentName}`
+                            : `Attached Diagnostic Scan — ${ord.attachmentName}`}
+                        </span>
+                        <a
+                          href={`/api/orders/${ord.id}/attachment?v=${encodeURIComponent(ord.attachmentName)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-300 font-semibold hover:underline shrink-0"
+                        >
+                          Open Full Size →
+                        </a>
+                      </div>
+                      <div className="p-3 flex items-center justify-center bg-black/90">
+                        <a
+                          href={`/api/orders/${ord.id}/attachment?v=${encodeURIComponent(ord.attachmentName)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <img
+                            src={`/api/orders/${ord.id}/attachment?v=${encodeURIComponent(ord.attachmentName)}`}
+                            alt={`${ord.testName} attachment`}
+                            className="max-h-64 w-auto object-contain rounded cursor-zoom-in"
+                          />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
                     {ord.attachmentName ? (
                       <a
-                        href={`/api/orders/${ord.id}/attachment`}
+                        href={`/api/orders/${ord.id}/attachment?v=${encodeURIComponent(ord.attachmentName)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 font-medium text-primary-700 hover:underline"
                       >
-                        <span>View Uploaded Report ({ord.attachmentName})</span>
+                        <span>View Uploaded Report / Film ({ord.attachmentName})</span>
                       </a>
                     ) : (
-                      <span className="text-[11px] text-ink-muted">No report file attached</span>
+                      <span className="text-[11px] text-ink-muted">
+                        {ord.department === 'Radiology'
+                          ? 'No X-Ray film or imaging report attached yet'
+                          : 'No report file attached'}
+                      </span>
                     )}
 
                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-medium text-ink-secondary cursor-pointer">

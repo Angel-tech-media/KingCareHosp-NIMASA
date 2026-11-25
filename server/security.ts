@@ -45,9 +45,11 @@ export function checkRateLimit(
 }
 
 export function getClientIp(req: FastifyRequest): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.trim().length > 0) {
-    return xff.split(',')[0].trim();
+  if (process.env.TRUST_PROXY === 'true') {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.trim().length > 0) {
+      return xff.split(',')[0].trim();
+    }
   }
   return req.ip || 'unknown';
 }
@@ -255,6 +257,9 @@ export function registerSecurityHooks(app: FastifyInstance): void {
     if (req.url.startsWith('/api/') && !reply.getHeader('Cache-Control')) {
       reply.header('Cache-Control', 'no-store, no-cache, must-revalidate');
       reply.header('Pragma', 'no-cache');
+    }
+    if (req.url.startsWith('/api/') && !reply.getHeader('Content-Security-Policy')) {
+      reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
     }
 
     return payload;

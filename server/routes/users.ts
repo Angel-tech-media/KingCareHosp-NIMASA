@@ -92,7 +92,7 @@ export function registerUserRoutes(app: FastifyInstance, db: DatabaseSync): void
     }
 
     db.prepare('UPDATE users SET status = ? WHERE id = ?').run(parsed.data.status, id);
-    if (parsed.data.status === 'Suspended') {
+    if (parsed.data.status !== 'Active') {
       db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
     }
 

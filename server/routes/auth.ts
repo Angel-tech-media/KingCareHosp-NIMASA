@@ -188,10 +188,13 @@ export function registerAuthRoutes(app: FastifyInstance, db: DatabaseSync): void
       return reply.code(401).send({ error: 'Invalid official email or password.' });
     }
 
-    if (row.status === 'Suspended') {
-      return reply
-        .code(403)
-        .send({ error: 'This account has been suspended. Contact the Medical Director.' });
+    if (row.status !== 'Active') {
+      return reply.code(403).send({
+        error:
+          row.status === 'On Leave'
+            ? 'This account is currently marked On Leave. Contact the Medical Director to restore active access.'
+            : 'This account has been suspended. Contact the Medical Director.',
+      });
     }
 
     clearFailedLogins(emailLower);

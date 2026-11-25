@@ -17,10 +17,12 @@ import {
   Upload,
   FileText,
   ClipboardList,
+  Maximize2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { CieStandard, DepartmentEquipment, DiagnosticOrder } from '../../types';
-import { PageHeader, SlideOver, ComplianceDetails } from '../../components/ui';
+import { PageHeader, SlideOver, Modal } from '../../components/ui';
 
 interface DiagnosticsPageProps {
   department: 'Laboratory' | 'Radiology' | 'ENT & Audiology' | 'Eye Clinic';
@@ -118,6 +120,16 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
   const [actionBanner, setActionBanner] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadCacheKey, setUploadCacheKey] = useState<number>(Date.now());
+  const [filmLightboxOpen, setFilmLightboxOpen] = useState(false);
+
+  // Structured Radiology / Digital X-Ray state
+  const [xrayProjection, setXrayProjection] = useState('PA Erect Chest Radiograph');
+  const [xrayQuality, setXrayQuality] = useState('Diagnostic — Adequate inspiration, rotation & penetration');
+  const [xrayCtr, setXrayCtr] = useState('0.46');
+  const [xrayLungs, setXrayLungs] = useState('Clear bilaterally; no focal consolidation, cavitation, or pleural effusion');
+  const [xrayTbScreen, setXrayTbScreen] = useState<'Clear' | 'Abnormal — RMP Review'>('Clear');
 
   // Structured ENT Audiometry state
   const [audioRight, setAudioRight] = useState({ hz500: 15, hz1000: 15, hz2000: 20, hz3000: 20 });
@@ -159,6 +171,18 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
           : 'Screening conducted under D65 illumination at 6m / 40cm.')
     );
 
+    if (selectedOrder.testName.toLowerCase().includes('ultrasound')) {
+      setXrayProjection('Abdominopelvic Ultrasound');
+    } else if (selectedOrder.testName.toLowerCase().includes('ecg') || selectedOrder.testName.toLowerCase().includes('electrocardiogram')) {
+      setXrayProjection('12-Lead Resting ECG');
+    } else {
+      setXrayProjection('PA Erect Chest Radiograph');
+    }
+    setXrayQuality('Diagnostic — Adequate inspiration, rotation & penetration');
+    setXrayCtr('0.46');
+    setXrayLungs('Clear bilaterally; no focal consolidation, cavitation, or pleural effusion');
+    setXrayTbScreen('Clear');
+
     const vh = selectedPatient?.rmp?.visionHearing;
     if (vh) {
       setAudioRight(vh.audiometryRight);
@@ -194,6 +218,17 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
       } · Near/Fields/Night: ${nearVisionMet ? 'OK' : 'Abn'}/${visualFieldsNormal ? 'Normal' : 'Defect'}/${
         nightVisionNormal ? 'Normal' : 'Impaired'
       }${findingsInput.trim() ? ` · ${findingsInput.trim()}` : ''}`;
+    }
+    if (department === 'Radiology') {
+      const isChestXray = xrayProjection.toLowerCase().includes('chest');
+      if (isChestXray) {
+        return `[${xrayProjection}] Quality: ${xrayQuality} · CTR: ${xrayCtr} · Lungs & Pleura: ${xrayLungs} · Pulmonary TB Screen: ${xrayTbScreen}${
+          findingsInput.trim() ? ` · Impression: ${findingsInput.trim()}` : ''
+        }`;
+      }
+      return `[${xrayProjection}] Quality: ${xrayQuality}${
+        findingsInput.trim() ? ` · Impression: ${findingsInput.trim()}` : ''
+      }`;
     }
     return findingsInput;
   };
@@ -255,19 +290,37 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file || !selectedOrder) return;
+  const uploadSelectedFile = async (file: File) => {
+    if (!selectedOrder) return;
     setUploading(true);
     try {
       await uploadOrderAttachment(selectedOrder.id, file);
-      triggerBanner(`Uploaded scanned report "${file.name}" for ${selectedOrder.recordNo}.`);
+      setUploadCacheKey(Date.now());
+      triggerBanner(
+        department === 'Radiology'
+          ? `Uploaded digital X-Ray / imaging file "${file.name}" for ${selectedOrder.recordNo}.`
+          : `Uploaded scanned report "${file.name}" for ${selectedOrder.recordNo}.`
+      );
     } catch (err) {
       triggerBanner(err instanceof Error ? err.message : 'Upload failed.');
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadSelectedFile(file);
+  };
+
+  const handleDropFile = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await uploadSelectedFile(file);
   };
 
   const DeptIcon =
@@ -740,6 +793,207 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                   </div>
                 )}
 
+                {department === 'Radiology' && (
+                  <div className="space-y-4">
+                    {/* Prominent Digital X-Ray Film Upload & Dark-Room Viewer */}
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragActive(true);
+                      }}
+                      onDragLeave={() => setDragActive(false)}
+                      onDrop={handleDropFile}
+                      className={`p-5 rounded-2xl border-2 transition-colors space-y-4 ${
+                        dragActive
+                          ? 'border-primary-600 bg-primary-50/70'
+                          : 'border-dashed border-surface-border-strong bg-surface-canvas/80'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-ink-primary flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                            <span>Digital X-Ray Film / Scan Upload</span>
+                          </div>
+                          <p className="text-xs text-ink-muted">
+                            Drag &amp; drop or select the digital radiograph image (PNG, JPEG, WebP) or signed radiology PDF report (up to 10 MB).
+                          </p>
+                        </div>
+
+                        <label className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-navy-800 hover:bg-navy-900 text-white text-xs font-semibold shadow-sm cursor-pointer shrink-0">
+                          <Upload className="w-4 h-4" aria-hidden="true" />
+                          <span>
+                            {uploading
+                              ? 'Uploading X-Ray...'
+                              : selectedOrder.attachmentName
+                              ? 'Replace X-Ray / Report'
+                              : 'Upload X-Ray / Scan'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,.pdf"
+                            disabled={uploading}
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      {/* Live Dark-Room X-Ray Image Preview */}
+                      {selectedOrder.attachmentName &&
+                        selectedOrder.attachmentMime?.startsWith('image/') && (
+                          <div className="rounded-xl overflow-hidden bg-slate-950 border border-slate-800 text-white">
+                            <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <ScanLine className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                                <span className="font-mono font-semibold text-emerald-300">
+                                  {selectedOrder.recordNo}
+                                </span>
+                                <span className="text-slate-400">·</span>
+                                <span className="truncate max-w-xs text-slate-200">
+                                  {selectedOrder.attachmentName}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setFilmLightboxOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white transition-colors"
+                              >
+                                <Maximize2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                <span>Enlarge Full Film</span>
+                              </button>
+                            </div>
+                            <div className="p-4 flex items-center justify-center bg-black/90">
+                              <img
+                                src={`/api/orders/${selectedOrder.id}/attachment?v=${uploadCacheKey}`}
+                                alt={`Digital X-Ray for ${selectedOrder.patientName}`}
+                                onClick={() => setFilmLightboxOpen(true)}
+                                className="max-h-80 w-auto object-contain rounded cursor-zoom-in"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                      {selectedOrder.attachmentName &&
+                        selectedOrder.attachmentMime === 'application/pdf' && (
+                          <div className="p-3.5 rounded-xl bg-white border border-surface-border flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-2 text-ink-primary font-medium">
+                              <FileText className="w-4 h-4 text-primary-700 shrink-0" />
+                              <span>Uploaded Radiology PDF: {selectedOrder.attachmentName}</span>
+                            </div>
+                            <a
+                              href={`/api/orders/${selectedOrder.id}/attachment?v=${uploadCacheKey}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-semibold text-primary-700 hover:underline shrink-0"
+                            >
+                              Open PDF Report →
+                            </a>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Structured Maritime Chest X-Ray / Imaging Parameters */}
+                    <div className="p-4 rounded-xl bg-surface-canvas/70 border border-surface-border space-y-3.5">
+                      <div className="text-sm font-semibold text-ink-primary">
+                        Structured Imaging &amp; Chest X-Ray Parameters
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="block font-semibold text-ink-secondary mb-1">
+                            Study / Projection View
+                          </label>
+                          <select
+                            value={xrayProjection}
+                            onChange={(e) => setXrayProjection(e.target.value)}
+                            className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-medium text-ink-primary"
+                          >
+                            <option value="PA Erect Chest Radiograph">
+                              PA Erect Chest Radiograph (Standard)
+                            </option>
+                            <option value="AP Chest Radiograph">AP Chest Radiograph</option>
+                            <option value="Abdominopelvic Ultrasound">
+                              Abdominopelvic Ultrasound
+                            </option>
+                            <option value="12-Lead Resting ECG">12-Lead Resting ECG</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-ink-secondary mb-1">
+                            Film / Image Technical Quality
+                          </label>
+                          <select
+                            value={xrayQuality}
+                            onChange={(e) => setXrayQuality(e.target.value)}
+                            className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-medium text-ink-primary"
+                          >
+                            <option value="Diagnostic — Adequate inspiration, rotation & penetration">
+                              Diagnostic — Good Inspiration &amp; Positioning
+                            </option>
+                            <option value="Suboptimal — Annotated in findings">
+                              Suboptimal (Annotated Below)
+                            </option>
+                            <option value="Repeat exposure required">Repeat Exposure Required</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {xrayProjection.toLowerCase().includes('chest') && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div>
+                            <label className="block font-semibold text-ink-secondary mb-1">
+                              Cardiothoracic Ratio (CTR)
+                            </label>
+                            <input
+                              type="text"
+                              value={xrayCtr}
+                              onChange={(e) => setXrayCtr(e.target.value)}
+                              placeholder="e.g. 0.46 (< 0.50)"
+                              className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-mono"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block font-semibold text-ink-secondary mb-1">
+                              Pulmonary TB / Contagious Disease Screen
+                            </label>
+                            <select
+                              value={xrayTbScreen}
+                              onChange={(e) =>
+                                setXrayTbScreen(
+                                  e.target.value as 'Clear' | 'Abnormal — RMP Review'
+                                )
+                              }
+                              className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-medium text-ink-primary"
+                            >
+                              <option value="Clear">
+                                Clear — No active pulmonary TB or contagious lesion seen
+                              </option>
+                              <option value="Abnormal — RMP Review">
+                                Abnormal / Suspicious Shadow — Flag for Doctor Review
+                              </option>
+                            </select>
+                          </div>
+
+                          <div className="sm:col-span-3">
+                            <label className="block font-semibold text-ink-secondary mb-1">
+                              Lung Fields, Pleura &amp; Costophrenic Angles
+                            </label>
+                            <input
+                              type="text"
+                              value={xrayLungs}
+                              onChange={(e) => setXrayLungs(e.target.value)}
+                              className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-semibold text-ink-secondary mb-1">
                     {department === 'Laboratory'
@@ -784,50 +1038,52 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
                   </div>
                 </div>
 
-                {/* Scanned Report / Audiogram / Printout File Upload */}
-                <div className="p-4 rounded-xl bg-surface-canvas/80 border border-dashed border-surface-border-strong flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="space-y-0.5 text-xs">
-                    <div className="font-semibold text-ink-primary flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-primary-600" aria-hidden="true" />
-                      <span>Upload Scanned Report / Audiogram / Film (PDF or Image)</span>
+                {/* Scanned Report / Audiogram / Printout File Upload (for non-Radiology departments; Radiology uses the dedicated X-Ray uploader above) */}
+                {department !== 'Radiology' && (
+                  <div className="p-4 rounded-xl bg-surface-canvas/80 border border-dashed border-surface-border-strong flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5 text-xs">
+                      <div className="font-semibold text-ink-primary flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                        <span>Upload Scanned Report / Audiogram / Printout (PDF or Image)</span>
+                      </div>
+                      {selectedOrder.attachmentName ? (
+                        <div className="text-[11px]">
+                          Attached:{' '}
+                          <a
+                            href={`/api/orders/${selectedOrder.id}/attachment?v=${uploadCacheKey}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-primary-700 hover:underline"
+                          >
+                            {selectedOrder.attachmentName}
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-ink-muted">
+                          Accepted formats: PDF, PNG, JPEG, WebP (up to 10 MB)
+                        </div>
+                      )}
                     </div>
-                    {selectedOrder.attachmentName ? (
-                      <div className="text-[11px]">
-                        Attached:{' '}
-                        <a
-                          href={`/api/orders/${selectedOrder.id}/attachment`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold text-primary-700 hover:underline"
-                        >
-                          {selectedOrder.attachmentName}
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-ink-muted">
-                        Accepted formats: PDF, PNG, JPEG, WebP (up to 10 MB)
-                      </div>
-                    )}
-                  </div>
 
-                  <label className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card cursor-pointer shrink-0">
-                    <Upload className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
-                    <span>
-                      {uploading
-                        ? 'Uploading...'
-                        : selectedOrder.attachmentName
-                        ? 'Replace File'
-                        : 'Choose File'}
-                    </span>
-                    <input
-                      type="file"
-                      accept=".pdf,image/png,image/jpeg,image/webp"
-                      disabled={uploading}
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+                    <label className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-white border border-surface-border-strong hover:bg-surface-canvas text-xs font-semibold text-ink-primary shadow-card cursor-pointer shrink-0">
+                      <Upload className="w-3.5 h-3.5 text-primary-600" aria-hidden="true" />
+                      <span>
+                        {uploading
+                          ? 'Uploading...'
+                          : selectedOrder.attachmentName
+                          ? 'Replace File'
+                          : 'Choose File'}
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf,image/png,image/jpeg,image/webp"
+                        disabled={uploading}
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
 
                 {/* Save draft & Publish */}
                 <div className="pt-4 border-t border-surface-border flex flex-wrap items-center justify-between gap-3">
@@ -1011,6 +1267,44 @@ export const DiagnosticsPage: React.FC<DiagnosticsPageProps> = ({ department }) 
           </form>
         </div>
       </SlideOver>
+
+      {/* Full-Screen Digital X-Ray Film Lightbox */}
+      <Modal
+        isOpen={filmLightboxOpen && Boolean(selectedOrder?.attachmentName)}
+        onClose={() => setFilmLightboxOpen(false)}
+        title={
+          selectedOrder
+            ? `Digital Radiograph — ${selectedOrder.patientName} (${selectedOrder.recordNo})`
+            : 'Digital Radiograph Viewer'
+        }
+        maxWidthClass="max-w-5xl"
+      >
+        {selectedOrder && (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-black p-4 flex items-center justify-center min-h-[60vh]">
+              <img
+                src={`/api/orders/${selectedOrder.id}/attachment?v=${uploadCacheKey}`}
+                alt={`Full resolution X-Ray for ${selectedOrder.patientName}`}
+                className="max-h-[75vh] w-auto object-contain rounded"
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
+              <span>
+                Study: <strong className="text-ink-primary">{selectedOrder.testName}</strong> · File:{' '}
+                {selectedOrder.attachmentName}
+              </span>
+              <a
+                href={`/api/orders/${selectedOrder.id}/attachment?v=${uploadCacheKey}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-primary-700 hover:underline"
+              >
+                Open Original File in New Tab →
+              </a>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

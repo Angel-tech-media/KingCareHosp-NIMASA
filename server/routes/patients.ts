@@ -117,6 +117,10 @@ const recordAccessSchema = z.object({
   purpose: z.string().trim().max(200).optional(),
 });
 
+const privacyConsentSchema = z.object({
+  consentToShareWithNimasa: z.boolean(),
+});
+
 const recentRecordAccessMap = new Map<string, number>();
 
 const admitSchema = z.object({
@@ -744,6 +748,38 @@ export function registerPatientRoutes(
     return { ok: true, logged: false };
   });
 
+  app.patch('/api/patients/:id/privacy-consent', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['FRONT_DESK', 'DOCTOR', 'ADMIN']);
+    if (!user) return;
+    const { id } = req.params as { id: string };
+    const target = getPatientById(db, id);
+    if (!target) return reply.code(404).send({ error: 'Seafarer record not found.' });
+
+    const parsed = privacyConsentSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid privacy consent payload.' });
+    }
+
+    const nextConsent = parsed.data.consentToShareWithNimasa ? 1 : 0;
+    db.prepare('UPDATE patients SET consent_to_share_with_nimasa = ? WHERE id = ?').run(
+      nextConsent,
+      id
+    );
+
+    appendAudit(
+      db,
+      user.fullName,
+      user.roleTitle,
+      'NDPA_CONSENT_UPDATED',
+      target.recordNo,
+      `Updated NDPA 2023 sponsor stage-sharing consent for ${target.fullName} to ${
+        nextConsent ? 'GRANTED' : 'WITHDRAWN'
+      }.`
+    );
+
+    return { ok: true, consentToShareWithNimasa: Boolean(nextConsent) };
+  });
+
   app.post('/api/patients/:id/orders', async (req, reply) => {
     const user = requireAuth(db, req, reply, ['DOCTOR', 'ADMIN']);
     if (!user) return;
@@ -1138,12 +1174,22 @@ export function registerPatientRoutes(
       return reply.code(400).send({ error: 'Invalid upload destination path.' });
     }
 
+    const prevPath = order.attachment_path ? String(order.attachment_path) : '';
+
     fs.mkdirSync(uploadsDir, { recursive: true });
     fs.writeFileSync(diskPath, buffer);
 
     db.prepare(
       `UPDATE diagnostic_orders SET attachment_name = ?, attachment_mime = ?, attachment_path = ? WHERE id = ?`
     ).run(originalName, mimeType, diskPath, orderId);
+
+    if (prevPath && prevPath !== diskPath && isPathInsideDir(prevPath, uploadsDir)) {
+      try {
+        if (fs.existsSync(prevPath)) fs.unlinkSync(prevPath);
+      } catch {
+        // Non-fatal cleanup
+      }
+    }
 
     appendAudit(
       db,
@@ -1360,6 +1406,13 @@ export function registerPatientRoutes(
       });
     }
     const body = parsed.data;
+    if (body.secondCheckerName.trim().toLowerCase() === user.fullName.trim().toLowerCase()) {
+      return reply.code(400).send({
+        ok: false,
+        error:
+          'Separation of duties required (RQP-701 §7.2): The second checker cannot be the same practitioner issuing the certificate.',
+      });
+    }
 
     const stockRow = db
       .prepare('SELECT * FROM certificate_stock WHERE serial_no = ?')

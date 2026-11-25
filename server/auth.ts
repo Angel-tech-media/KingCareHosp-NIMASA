@@ -118,7 +118,7 @@ export function getAuthenticatedUser(db: DatabaseSync, req: FastifyRequest): Aut
     expiresMs < nowMs ||
     Number.isNaN(lastSeenMs) ||
     nowMs - lastSeenMs > SESSION_IDLE_MINUTES * 60 * 1000 ||
-    row.status === 'Suspended'
+    row.status !== 'Active'
   ) {
     deleteSession(db, token);
     return null;

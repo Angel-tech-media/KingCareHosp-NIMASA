@@ -95,6 +95,13 @@ export const SAMPLE_TESTS_CATALOG: SampleTestCatalogItem[] = [
     testName: 'Abdominal & Pelvic Ultrasound Scan',
     referenceRange: 'Normal hepatobiliary and renal sonography',
   },
+  {
+    id: 'tst-11',
+    category: 'Imaging',
+    department: 'Radiology',
+    testName: '12-Lead Resting Electrocardiogram (ECG)',
+    referenceRange: 'Normal sinus rhythm, no ischaemic or conduction abnormality',
+  },
 ];
 
 const DEFAULT_DEPT_INSTRUCTIONS: Record<OrderDepartment, string> = {

@@ -699,7 +699,144 @@ async function main() {
     assert.equal(prodSeedRes.statusCode, 403);
     console.log('11. Production demo endpoint lock (/system/reset & /system/seed) -> PASS');
 
-    console.log('\nAll 11 security regression checks passed.');
+    // -----------------------------------------------------------------------
+    // 12. Untrusted X-Forwarded-For cannot bypass IP rate limits
+    // -----------------------------------------------------------------------
+    resetSecurityState();
+    delete process.env.TRUST_PROXY;
+    for (let i = 1; i <= 15; i++) {
+      const r = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        headers: { 'x-forwarded-for': `203.0.113.${i}` },
+        payload: { email: `nonexistent${i}@kingscarehospital.ng`, password: 'WrongPassword1' },
+      });
+      assert.equal(r.statusCode, 401);
+    }
+    const spoofed16 = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: { 'x-forwarded-for': '198.51.100.99' },
+      payload: { email: 'nonexistent99@kingscarehospital.ng', password: 'WrongPassword1' },
+    });
+    assert.equal(spoofed16.statusCode, 429);
+    console.log('12. Untrusted X-Forwarded-For rate-limit bypass blocked (429) -> PASS');
+
+    // -----------------------------------------------------------------------
+    // 13. On Leave status immediately revokes active sessions and blocks login
+    // -----------------------------------------------------------------------
+    resetSecurityState();
+    const eyeFreshCookie = await loginAs('eye@kingscarehospital.ng', 'EyeClinic#2027');
+    const adminUsersBoot = (
+      await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: adminCookie } })
+    ).json() as { users: Array<{ id: string; email: string }> };
+    const eyeUserId = adminUsersBoot.users.find((u) => u.email === 'eye@kingscarehospital.ng')!.id;
+
+    const setLeaveRes = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${eyeUserId}/status`,
+      headers: { cookie: adminCookie },
+      payload: { status: 'On Leave' },
+    });
+    assert.equal(setLeaveRes.statusCode, 200);
+
+    const leaveSessionCheck = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie: eyeFreshCookie },
+    });
+    assert.equal(leaveSessionCheck.statusCode, 401);
+
+    const leaveLoginAttempt = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'eye@kingscarehospital.ng', password: 'EyeClinic#2027' },
+    });
+    assert.equal(leaveLoginAttempt.statusCode, 403);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${eyeUserId}/status`,
+      headers: { cookie: adminCookie },
+      payload: { status: 'Active' },
+    });
+    console.log('13. On Leave account revocation & sign-in guard -> PASS');
+
+    // -----------------------------------------------------------------------
+    // 14. NDPA 2023 live consent withdrawal removes patient from NIMASA view
+    // -----------------------------------------------------------------------
+    const withdrawRes = await app.inject({
+      method: 'PATCH',
+      url: `/api/patients/${pEyeId}/privacy-consent`,
+      headers: { cookie: fdCookie },
+      payload: { consentToShareWithNimasa: false },
+    });
+    assert.equal(withdrawRes.statusCode, 200);
+
+    const nimasaAfterWithdraw = (
+      await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: nimasaCookie } })
+    ).json() as { patients: Array<{ id: string }> };
+    assert.ok(!nimasaAfterWithdraw.patients.some((p) => p.id === pEyeId));
+    console.log('14. NDPA 2023 live consent withdrawal & NIMASA exclusion -> PASS');
+
+    // -----------------------------------------------------------------------
+    // 15. Four-eyes separation of duties (RQP-701 §7.2) & replaced file cleanup
+    // -----------------------------------------------------------------------
+    const publishEyeRes = await app.inject({
+      method: 'POST',
+      url: `/api/orders/${eyeOrderId}/publish`,
+      headers: { cookie: adminCookie },
+      payload: { publishedResult: 'Acuity 1.0 bilateral, CIE 1' },
+    });
+    assert.equal(publishEyeRes.statusCode, 200);
+
+    const stockBoot = (
+      await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: adminCookie } })
+    ).json() as {
+      currentUser: { fullName: string };
+      certificateStock: Array<{ serialNo: string; status: string }>;
+    };
+    const availSerial = stockBoot.certificateStock.find(
+      (s) => s.status === 'Issued to RMP' || s.status === 'In Cabinet'
+    )!.serialNo;
+
+    const selfCheckCert = await app.inject({
+      method: 'POST',
+      url: `/api/patients/${pEyeId}/issue-certificate`,
+      headers: { cookie: adminCookie },
+      payload: {
+        serialNo: availSerial,
+        secondCheckerName: stockBoot.currentUser.fullName,
+        seafarerSigned: true,
+      },
+    });
+    assert.equal(selfCheckCert.statusCode, 400);
+
+    // Verify replacing an uploaded report deletes the superseded file from disk
+    const validPng = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    ]).toString('base64');
+    await app.inject({
+      method: 'POST',
+      url: `/api/orders/${eyeOrderId}/attachment`,
+      headers: { cookie: adminCookie },
+      payload: { fileName: 'xray_v1.png', mimeType: 'image/png', dataBase64: validPng },
+    });
+    const filesAfterV1 = fs.readdirSync(uploadsDir).filter((f) => f.includes('xray_v1.png'));
+    assert.equal(filesAfterV1.length, 1);
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/orders/${eyeOrderId}/attachment`,
+      headers: { cookie: adminCookie },
+      payload: { fileName: 'xray_v2.png', mimeType: 'image/png', dataBase64: validPng },
+    });
+    const filesAfterV2 = fs.readdirSync(uploadsDir);
+    assert.ok(!filesAfterV2.some((f) => f.includes('xray_v1.png')));
+    assert.ok(filesAfterV2.some((f) => f.includes('xray_v2.png')));
+    console.log('15. Four-eyes certificate check & superseded file cleanup -> PASS');
+
+    console.log('\nAll 15 security & NDPA 2023 regression checks passed.');
   } finally {
     if (prevDisableDemo === undefined) {
       delete process.env.DISABLE_DEMO_ENDPOINTS;
