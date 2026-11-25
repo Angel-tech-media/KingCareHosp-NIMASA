@@ -4,6 +4,7 @@ import {
   AuditLogEntry,
   AuthUser,
   CertificateStockItem,
+  ClinicalNoteType,
   DailyEquipmentCheckState,
   DepartmentCertificate,
   DepartmentEquipment,
@@ -243,6 +244,11 @@ interface HospitalContextValue {
     shortSummary: string,
     fullClinicalNote: string
   ) => Promise<void>;
+  addClinicalNote: (
+    patientId: string,
+    input: { noteType: ClinicalNoteType; summary?: string; content: string }
+  ) => Promise<void>;
+  logRestrictedRecordAccess: (patientId: string, purpose?: string) => Promise<void>;
   orderTests: (patientId: string, tests: NewOrderTestItem[]) => Promise<void>;
   admitPatient: (patientId: string, wardRoom?: string) => Promise<void>;
   saveOrderDraft: (
@@ -577,6 +583,37 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await refreshBootstrap();
   };
 
+  const addClinicalNote = async (
+    patientId: string,
+    input: { noteType: ClinicalNoteType; summary?: string; content: string }
+  ) => {
+    await apiRequest(`/api/patients/${patientId}/clinical-notes`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    await refreshBootstrap();
+  };
+
+  const logRestrictedRecordAccess = useCallback(
+    async (patientId: string, purpose?: string) => {
+      try {
+        const res = await apiRequest<{ ok: boolean; logged?: boolean }>(
+          `/api/patients/${patientId}/record-access`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ purpose }),
+          }
+        );
+        if (res.logged) {
+          await refreshBootstrap();
+        }
+      } catch {
+        // Non-blocking audit telemetry
+      }
+    },
+    [refreshBootstrap]
+  );
+
   const orderTests = async (patientId: string, tests: NewOrderTestItem[]) => {
     await apiRequest(`/api/patients/${patientId}/orders`, {
       method: 'POST',
@@ -809,6 +846,8 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         sendToDoctor,
         startFirstAssessment,
         completeFirstAssessment,
+        addClinicalNote,
+        logRestrictedRecordAccess,
         orderTests,
         admitPatient,
         saveOrderDraft,

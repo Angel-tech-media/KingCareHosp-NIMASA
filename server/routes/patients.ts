@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { requireAuth } from '../auth.js';
 import {
   appendAudit,
+  appendClinicalNote,
   calculateAgeYears,
   formatDateShort,
   formatNowTimestamp,
@@ -14,6 +15,7 @@ import {
 } from '../db.js';
 import { isPathInsideDir, verifyUploadedFileMagicBytes } from '../security.js';
 import type {
+  ClinicalNoteType,
   FitnessDetermination,
   IssuedCertificate,
   MedicationItem,
@@ -95,6 +97,27 @@ const firstAssessmentSchema = z.object({
 const secondAssessmentSchema = z.object({
   note: z.string().trim().max(8000).optional(),
 });
+
+const clinicalNoteSchema = z.object({
+  noteType: z.enum([
+    'Initial Examination',
+    'Handover / Addendum',
+    'Follow-Up Review',
+    'Peer Review',
+  ]),
+  summary: z.string().trim().max(400).optional(),
+  content: z
+    .string()
+    .trim()
+    .min(2, 'Clinical note or review entry cannot be empty.')
+    .max(10000),
+});
+
+const recordAccessSchema = z.object({
+  purpose: z.string().trim().max(200).optional(),
+});
+
+const recentRecordAccessMap = new Map<string, number>();
 
 const admitSchema = z.object({
   wardRoom: z.string().trim().min(2).max(120).optional(),
@@ -502,6 +525,18 @@ export function registerPatientRoutes(
        WHERE id = ?`
     ).run(cleanSummary, parsed.data.fullClinicalNote || '', id);
 
+    if (parsed.data.fullClinicalNote?.trim()) {
+      appendClinicalNote(db, {
+        patientId: id,
+        noteType: 'Initial Examination',
+        summary: cleanSummary,
+        content: parsed.data.fullClinicalNote.trim(),
+        authorName: user.fullName,
+        authorRole: user.roleTitle,
+        authorLicense: user.licenseNo,
+      });
+    }
+
     upsertTimeline(db, id, 'First assessment complete', user.fullName, user.roleTitle, cleanSummary);
     appendAudit(
       db,
@@ -532,6 +567,17 @@ export function registerPatientRoutes(
        WHERE id = ?`
     ).run(parsed.data.note || '', id);
 
+    if (parsed.data.note?.trim()) {
+      appendClinicalNote(db, {
+        patientId: id,
+        noteType: 'Follow-Up Review',
+        content: parsed.data.note.trim(),
+        authorName: user.fullName,
+        authorRole: user.roleTitle,
+        authorLicense: user.licenseNo,
+      });
+    }
+
     upsertTimeline(
       db,
       id,
@@ -549,6 +595,153 @@ export function registerPatientRoutes(
       `Recorded post-investigation clinical note for ${target.fullName}.`
     );
     return { ok: true };
+  });
+
+  app.post('/api/patients/:id/clinical-notes', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['DOCTOR', 'ADMIN']);
+    if (!user) return;
+    const { id } = req.params as { id: string };
+    const target = getPatientById(db, id);
+    if (!target) return reply.code(404).send({ error: 'Seafarer record not found.' });
+
+    const parsed = clinicalNoteSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: parsed.error.issues[0]?.message || 'Invalid clinical note entry.' });
+    }
+
+    const { noteType, summary, content } = parsed.data;
+    const cleanSummary = summary?.trim();
+
+    db.exec('BEGIN;');
+    try {
+      const entry = appendClinicalNote(db, {
+        patientId: id,
+        noteType: noteType as ClinicalNoteType,
+        summary: cleanSummary,
+        content,
+        authorName: user.fullName,
+        authorRole: user.roleTitle,
+        authorLicense: user.licenseNo,
+      });
+
+      if (noteType === 'Initial Examination') {
+        const publicSummary =
+          cleanSummary || 'Initial clinical examination documented in case file.';
+        if (!target.timeline.some((t) => t.stage === 'In assessment')) {
+          upsertTimeline(
+            db,
+            id,
+            'In assessment',
+            user.fullName,
+            user.roleTitle,
+            'Initial consultation performed.'
+          );
+        }
+        const shouldAdvanceStage =
+          target.currentStage === 'Registered' ||
+          target.currentStage === 'Awaiting doctor' ||
+          target.currentStage === 'In assessment';
+        if (shouldAdvanceStage) {
+          db.prepare(
+            `UPDATE patients
+             SET current_stage = 'First assessment complete', current_location = 'Consultation Room 1',
+                 first_assessment_summary = ?, first_assessment_full_note = ?
+             WHERE id = ?`
+          ).run(publicSummary, content, id);
+        } else {
+          db.prepare(
+            `UPDATE patients SET first_assessment_summary = ?, first_assessment_full_note = ? WHERE id = ?`
+          ).run(publicSummary, content, id);
+        }
+        upsertTimeline(
+          db,
+          id,
+          'First assessment complete',
+          user.fullName,
+          user.roleTitle,
+          publicSummary
+        );
+      } else if (noteType === 'Follow-Up Review') {
+        if (
+          target.currentStage === 'Results ready' ||
+          target.currentStage === 'First assessment complete'
+        ) {
+          db.prepare(
+            `UPDATE patients
+             SET current_stage = 'Second assessment', current_location = 'Consultation Room 1',
+                 second_assessment_note = ?
+             WHERE id = ?`
+          ).run(content, id);
+        } else {
+          db.prepare(`UPDATE patients SET second_assessment_note = ? WHERE id = ?`).run(
+            content,
+            id
+          );
+        }
+        upsertTimeline(
+          db,
+          id,
+          'Second assessment',
+          user.fullName,
+          user.roleTitle,
+          cleanSummary || 'Follow-up clinical review documented in case file.'
+        );
+      }
+
+      appendAudit(
+        db,
+        user.fullName,
+        user.roleTitle,
+        'CLINICAL_NOTE_FILED',
+        target.recordNo,
+        `Filed permanent ${noteType} entry in confidential case file for ${target.fullName}${
+          user.licenseNo ? ` (${user.licenseNo})` : ''
+        }.`
+      );
+      db.exec('COMMIT;');
+      return { ok: true, entry };
+    } catch (err) {
+      db.exec('ROLLBACK;');
+      throw err;
+    }
+  });
+
+  app.post('/api/patients/:id/record-access', async (req, reply) => {
+    const user = requireAuth(db, req, reply, ['DOCTOR', 'ADMIN']);
+    if (!user) return;
+    const { id } = req.params as { id: string };
+    const target = getPatientById(db, id);
+    if (!target) return reply.code(404).send({ error: 'Seafarer record not found.' });
+
+    const parsed = recordAccessSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid access log request.' });
+    }
+
+    const dedupeKey = `${user.id}:${target.recordNo}`;
+    const nowMs = Date.now();
+    const lastMs = recentRecordAccessMap.get(dedupeKey) || 0;
+    if (nowMs - lastMs >= 5 * 60_000) {
+      recentRecordAccessMap.set(dedupeKey, nowMs);
+      const purpose =
+        parsed.data.purpose ||
+        (user.portalRole === 'ADMIN'
+          ? 'Medical Director / Peer Review (RQP-304)'
+          : 'Clinical Examination / Handover Review');
+      appendAudit(
+        db,
+        user.fullName,
+        user.roleTitle,
+        'RESTRICTED_RECORD_ACCESSED',
+        target.recordNo,
+        `Accessed restricted clinical case file for ${target.fullName} — Purpose: ${purpose} (RQP-802 §7.2.1 / RQR-802-01).`
+      );
+      return { ok: true, logged: true };
+    }
+
+    return { ok: true, logged: false };
   });
 
   app.post('/api/patients/:id/orders', async (req, reply) => {

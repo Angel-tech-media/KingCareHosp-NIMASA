@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   ShieldAlert,
   ClipboardCheck,
@@ -7,6 +8,7 @@ import {
   CheckCircle2,
   Plus,
   Users,
+  FileText,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 
@@ -279,67 +281,148 @@ export const AdminGovernancePage: React.FC = () => {
 
           {/* TAB 3: Internal Audit & Clinical Peer Review */}
           {activeTab === 'AUDIT_PEER' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 text-xs">
-              <div className="p-4 rounded-lg bg-surface-canvas border border-surface-border space-y-3">
-                <div className="font-bold text-ink-primary text-sm flex items-center gap-2">
-                  <ClipboardCheck className="w-4 h-4 text-primary-600" aria-hidden="true" />
-                  Annual Internal Audit Programme (RQF-103-01)
-                </div>
-                <ul className="space-y-2">
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Series 600 &amp; 700 (H1 &amp; H2 — Twice Yearly)</strong>
-                      <div className="text-ink-muted">
-                        Checklist RQC-103-01 · 10 records/RMP including all {limitedOrUnfitCount} Not Fit/Limited cases
+            <div className="space-y-6 text-xs">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div className="p-4 rounded-lg bg-surface-canvas border border-surface-border space-y-3">
+                  <div className="font-bold text-ink-primary text-sm flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                    Annual Internal Audit Programme
+                  </div>
+                  <ul className="space-y-2">
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Clinical &amp; Certificate Audit (Twice Yearly)</strong>
+                        <div className="text-ink-muted">
+                          10 records per practitioner including all {limitedOrUnfitCount} Not Fit / Limited cases
+                        </div>
                       </div>
-                    </div>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
-                  </li>
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Series 100–500, 800 &amp; Premises (Annual)</strong>
-                      <div className="text-ink-muted">Checklist RQC-103-02 + 4-Direction Register Verification (RQC-101-01)</div>
-                    </div>
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
-                  </li>
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Record Retrieval Test (RQF-102-01 · IND-15)</strong>
-                      <div className="text-ink-muted">10/10 sampled certificates retrieved within 1 working day (100%)</div>
-                    </div>
-                    <span className="font-mono font-bold text-emerald-800">10/10</span>
-                  </li>
-                </ul>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+                    </li>
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Premises, Equipment &amp; Records Audit (Annual)</strong>
+                        <div className="text-ink-muted">Full QSS scope &amp; 4-direction register verification</div>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
+                    </li>
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Record Retrieval Test</strong>
+                        <div className="text-ink-muted">10/10 sampled certificates retrieved within 1 working day (100%)</div>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-800">10/10</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="p-4 rounded-lg bg-surface-canvas border border-surface-border space-y-3">
+                  <div className="font-bold text-ink-primary text-sm flex items-center gap-2">
+                    <Users className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                    Clinical Peer Review &amp; Handover Oversight (RQP-304)
+                  </div>
+                  <ul className="space-y-2">
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Quarterly Peer Review</strong>
+                        <div className="text-ink-muted">≥ 5 clinical files reviewed per practitioner per quarter by another RMP</div>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-800">6 / 5</span>
+                    </li>
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Clinical Consistency Exercise</strong>
+                        <div className="text-ink-muted">Twice yearly on 5 anonymised borderline cases across all RMPs</div>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-800">2 / yr</span>
+                    </li>
+                    <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
+                      <div>
+                        <strong className="text-ink-primary">Management Review</strong>
+                        <div className="text-ink-muted">Held twice yearly covering all 14 standing quality inputs</div>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-800">14 / 14</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
 
-              <div className="p-4 rounded-lg bg-surface-canvas border border-surface-border space-y-3">
-                <div className="font-bold text-ink-primary text-sm flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary-600" aria-hidden="true" />
-                  Clinical Peer Review &amp; Consistency (RQP-304)
+              {/* Direct Medical Director / Peer Review Clinical Case File Table */}
+              <div className="border border-surface-border rounded-lg overflow-hidden bg-surface-card">
+                <div className="px-4 py-3.5 bg-surface-canvas border-b border-surface-border flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-ink-primary flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary-700" aria-hidden="true" />
+                      <span>Seafarer Clinical Case Files — Medical Director &amp; Peer Review Access</span>
+                    </h3>
+                    <p className="text-xs text-ink-muted mt-0.5">
+                      Open any seafarer&apos;s full chronological clinical notes and add a signed Peer Review entry. Every access is logged in the restricted Access Log (RQP-802 §7.2.1).
+                    </p>
+                  </div>
                 </div>
-                <ul className="space-y-2">
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Quarterly Peer Review (RQF-304-01 · IND-11)</strong>
-                      <div className="text-ink-muted">≥ 5 records reviewed per practitioner per quarter by another RMP</div>
-                    </div>
-                    <span className="font-mono font-bold text-emerald-800">6 / 5</span>
-                  </li>
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Consistency Exercise (RQF-304-02)</strong>
-                      <div className="text-ink-muted">Twice yearly on 5 anonymised borderline cases across all RMPs</div>
-                    </div>
-                    <span className="font-mono font-bold text-emerald-800">2 / yr</span>
-                  </li>
-                  <li className="p-2.5 rounded bg-surface-card border border-surface-border flex items-center justify-between">
-                    <div>
-                      <strong className="text-ink-primary">Management Review (RQF-104-01)</strong>
-                      <div className="text-ink-muted">Held twice yearly covering all 14 standing inputs</div>
-                    </div>
-                    <span className="font-mono font-bold text-emerald-800">14 / 14</span>
-                  </li>
-                </ul>
+
+                {patients.length === 0 ? (
+                  <div className="p-8 text-center text-ink-muted">
+                    No seafarer clinical records registered yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-surface-canvas/60 border-b border-surface-border text-ink-muted font-semibold">
+                          <th scope="col" className="py-3 px-4">Seafarer</th>
+                          <th scope="col" className="py-3 px-4">Exam Type &amp; Stage</th>
+                          <th scope="col" className="py-3 px-4">Filed Clinical Notes</th>
+                          <th scope="col" className="py-3 px-4">Fitness Outcome</th>
+                          <th scope="col" className="py-3 px-4 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface-border">
+                        {patients.map((p) => {
+                          const notes = p.clinicalNotes || [];
+                          const latest = notes.length > 0 ? notes[notes.length - 1] : undefined;
+                          return (
+                            <tr key={p.id} className="hover:bg-primary-50/30">
+                              <td className="py-3 px-4">
+                                <div className="font-semibold text-ink-primary">{p.fullName}</div>
+                                <div className="font-mono text-primary-700">{p.recordNo}</div>
+                              </td>
+                              <td className="py-3 px-4 text-ink-secondary">
+                                <div>
+                                  {p.rmp?.entryExam ? 'Entry / Recruit Exam' : 'Periodic / Renewal Exam'}
+                                </div>
+                                <div className="text-ink-muted">{p.currentStage}</div>
+                              </td>
+                              <td className="py-3 px-4 text-ink-secondary">
+                                <div className="font-semibold text-ink-primary">
+                                  {notes.length} {notes.length === 1 ? 'signed note' : 'signed notes'}
+                                </div>
+                                <div className="text-ink-muted">
+                                  {latest
+                                    ? `Latest: ${latest.authorName} (${latest.noteType})`
+                                    : 'No note filed yet'}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="font-semibold text-ink-primary">
+                                  {p.rmp?.determination || 'Pending'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <Link
+                                  to={`/doctor/patients/${p.recordNo}?tab=NOTES`}
+                                  className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-navy-900 hover:bg-navy-800 text-white font-semibold transition-colors"
+                                >
+                                  <FileText className="w-3.5 h-3.5" aria-hidden="true" />
+                                  <span>Open Clinical File</span>
+                                </Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

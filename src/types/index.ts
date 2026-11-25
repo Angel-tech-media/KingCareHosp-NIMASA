@@ -86,6 +86,23 @@ export interface MedicationItem {
   prescribedAt: string;
 }
 
+export type ClinicalNoteType =
+  | 'Initial Examination'
+  | 'Handover / Addendum'
+  | 'Follow-Up Review'
+  | 'Peer Review';
+
+export interface ClinicalNoteEntry {
+  id: string;
+  noteType: ClinicalNoteType;
+  summary?: string;
+  content: string;
+  authorName: string;
+  authorRole: string;
+  authorLicense?: string;
+  createdAt: string;
+}
+
 export type SeafarerCategory =
   | 'Deck (Master / Officer / Lookout)'
   | 'Engine / Electro-Technical'
@@ -264,6 +281,7 @@ export interface PatientRecord {
   firstAssessmentSummary?: string;
   firstAssessmentFullNote?: string;
   secondAssessmentNote?: string;
+  clinicalNotes?: ClinicalNoteEntry[];
   medications: MedicationItem[];
   dischargeSummary?: string;
   timeline: StageHistoryEntry[];

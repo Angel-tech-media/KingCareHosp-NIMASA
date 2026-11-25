@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, AlertTriangle, Clock, ChevronRight } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Clock, ChevronRight, FileText } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
 import { PageHeader, Tabs, TabItem } from '../../components/ui';
 
@@ -141,6 +141,8 @@ export const DoctorDashboard: React.FC = () => {
             const publishedCount = patient.orders.filter(
               (o) => o.status === 'Published'
             ).length;
+            const noteList = patient.clinicalNotes || [];
+            const latestNote = noteList.length > 0 ? noteList[noteList.length - 1] : undefined;
             const rmp = patient.rmp;
 
             return (
@@ -189,10 +191,30 @@ export const DoctorDashboard: React.FC = () => {
                       <Clock className="w-3 h-3" aria-hidden="true" />
                       {patient.arrivedAt}
                     </span>
+                    {latestNote && (
+                      <>
+                        <span>·</span>
+                        <span className="text-ink-secondary">
+                          Last note: <strong>{latestNote.authorName}</strong> ({latestNote.noteType})
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/doctor/patients/${patient.recordNo}?tab=NOTES`);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-surface-border-strong bg-white hover:bg-surface-canvas text-xs font-medium text-ink-primary transition-colors"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-primary-700" aria-hidden="true" />
+                    <span>Clinical File ({noteList.length})</span>
+                  </button>
+
                   {publishedCount > 0 && (
                     <span className="text-xs font-medium text-primary-700">
                       {publishedCount} result(s) ready

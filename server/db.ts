@@ -6,6 +6,8 @@ import type {
   AuditLogEntry,
   AuthUser,
   CertificateStockItem,
+  ClinicalNoteEntry,
+  ClinicalNoteType,
   DailyEquipmentCheckState,
   DepartmentCertificate,
   DepartmentEquipment,
@@ -195,6 +197,18 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
       public_summary TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS patient_clinical_notes (
+      id TEXT PRIMARY KEY,
+      patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+      note_type TEXT NOT NULL,
+      summary TEXT,
+      content TEXT NOT NULL,
+      author_name TEXT NOT NULL,
+      author_role TEXT NOT NULL,
+      author_license TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS diagnostic_orders (
       id TEXT PRIMARY KEY,
       patient_id TEXT NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
@@ -279,6 +293,71 @@ export function openDatabase(customPath = DB_PATH): DatabaseSync {
   for (const [col, colType] of missingCols) {
     if (!orderCols.includes(col)) {
       db.exec(`ALTER TABLE diagnostic_orders ADD COLUMN ${col} ${colType};`);
+    }
+  }
+
+  // Idempotent backfill: preserve any pre-existing assessment notes into patient_clinical_notes
+  const legacyNoteRows = db
+    .prepare(
+      `SELECT id, first_assessment_summary, first_assessment_full_note, second_assessment_note, created_at
+       FROM patients
+       WHERE (first_assessment_full_note IS NOT NULL AND trim(first_assessment_full_note) <> '')
+          OR (second_assessment_note IS NOT NULL AND trim(second_assessment_note) <> '')`
+    )
+    .all() as Record<string, unknown>[];
+
+  for (const pRow of legacyNoteRows) {
+    const pid = String(pRow.id);
+    const existingCount = (
+      db
+        .prepare('SELECT COUNT(*) AS cnt FROM patient_clinical_notes WHERE patient_id = ?')
+        .get(pid) as { cnt: number }
+    ).cnt;
+    if (existingCount > 0) continue;
+
+    if (pRow.first_assessment_full_note && String(pRow.first_assessment_full_note).trim()) {
+      const t1 = db
+        .prepare(
+          `SELECT actor_name, actor_role, reached_at FROM patient_timeline
+           WHERE patient_id = ? AND stage IN ('First assessment complete', 'In assessment')
+           ORDER BY id DESC LIMIT 1`
+        )
+        .get(pid) as Record<string, unknown> | undefined;
+      db.prepare(
+        `INSERT INTO patient_clinical_notes (
+          id, patient_id, note_type, summary, content, author_name, author_role, author_license, created_at
+        ) VALUES (?, ?, 'Initial Examination', ?, ?, ?, ?, NULL, ?)`
+      ).run(
+        `cn-init-${pid}`,
+        pid,
+        pRow.first_assessment_summary ? String(pRow.first_assessment_summary) : null,
+        String(pRow.first_assessment_full_note).trim(),
+        t1?.actor_name ? String(t1.actor_name) : 'Examining RMP',
+        t1?.actor_role ? String(t1.actor_role) : 'Recognized Medical Practitioner (RMP)',
+        t1?.reached_at ? String(t1.reached_at) : String(pRow.created_at)
+      );
+    }
+
+    if (pRow.second_assessment_note && String(pRow.second_assessment_note).trim()) {
+      const t2 = db
+        .prepare(
+          `SELECT actor_name, actor_role, reached_at FROM patient_timeline
+           WHERE patient_id = ? AND stage = 'Second assessment'
+           ORDER BY id DESC LIMIT 1`
+        )
+        .get(pid) as Record<string, unknown> | undefined;
+      db.prepare(
+        `INSERT INTO patient_clinical_notes (
+          id, patient_id, note_type, summary, content, author_name, author_role, author_license, created_at
+        ) VALUES (?, ?, 'Follow-Up Review', NULL, ?, ?, ?, NULL, ?)`
+      ).run(
+        `cn-rev-${pid}`,
+        pid,
+        String(pRow.second_assessment_note).trim(),
+        t2?.actor_name ? String(t2.actor_name) : 'Examining RMP',
+        t2?.actor_role ? String(t2.actor_role) : 'Recognized Medical Practitioner (RMP)',
+        t2?.reached_at ? String(t2.reached_at) : String(pRow.created_at)
+      );
     }
   }
 
@@ -413,6 +492,52 @@ export function appendAudit(
   ).run(id, formatNowTimestamp(), actorName, actorRole, action, recordNo, details);
 }
 
+export function appendClinicalNote(
+  db: DatabaseSync,
+  params: {
+    patientId: string;
+    noteType: ClinicalNoteType;
+    summary?: string;
+    content: string;
+    authorName: string;
+    authorRole: string;
+    authorLicense?: string;
+  }
+): ClinicalNoteEntry {
+  const id = `cn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const createdAt = formatNowTimestamp();
+  const cleanSummary = params.summary?.trim() || undefined;
+  const cleanContent = params.content.trim();
+  const cleanLicense = params.authorLicense?.trim() || undefined;
+
+  db.prepare(
+    `INSERT INTO patient_clinical_notes (
+      id, patient_id, note_type, summary, content, author_name, author_role, author_license, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    params.patientId,
+    params.noteType,
+    cleanSummary ?? null,
+    cleanContent,
+    params.authorName,
+    params.authorRole,
+    cleanLicense ?? null,
+    createdAt
+  );
+
+  return {
+    id,
+    noteType: params.noteType,
+    summary: cleanSummary,
+    content: cleanContent,
+    authorName: params.authorName,
+    authorRole: params.authorRole,
+    authorLicense: cleanLicense,
+    createdAt,
+  };
+}
+
 export function getPracticeSettings(db: DatabaseSync): PracticeSettings {
   const row = db
     .prepare('SELECT * FROM practice_settings WHERE id = 1')
@@ -446,6 +571,21 @@ export function getPatientById(db: DatabaseSync, id: string): PatientRecord | nu
   const orderRows = db
     .prepare('SELECT * FROM diagnostic_orders WHERE patient_id = ? ORDER BY rowid DESC')
     .all(id) as Record<string, unknown>[];
+
+  const noteRows = db
+    .prepare('SELECT * FROM patient_clinical_notes WHERE patient_id = ? ORDER BY rowid ASC')
+    .all(id) as Record<string, unknown>[];
+
+  const clinicalNotes: ClinicalNoteEntry[] = noteRows.map((n) => ({
+    id: String(n.id),
+    noteType: String(n.note_type) as ClinicalNoteType,
+    summary: n.summary ? String(n.summary) : undefined,
+    content: String(n.content),
+    authorName: String(n.author_name),
+    authorRole: String(n.author_role),
+    authorLicense: n.author_license ? String(n.author_license) : undefined,
+    createdAt: String(n.created_at),
+  }));
 
   const timeline: StageHistoryEntry[] = timelineRows.map((t) => ({
     stage: String(t.stage) as PatientStage,
@@ -527,6 +667,7 @@ export function getPatientById(db: DatabaseSync, id: string): PatientRecord | nu
     secondAssessmentNote: row.second_assessment_note
       ? String(row.second_assessment_note)
       : undefined,
+    clinicalNotes,
     medications,
     dischargeSummary: row.discharge_summary ? String(row.discharge_summary) : undefined,
     timeline,
@@ -619,6 +760,7 @@ function redactForNimasa(p: PatientRecord): PatientRecord {
     firstAssessmentSummary: undefined,
     firstAssessmentFullNote: undefined,
     secondAssessmentNote: undefined,
+    clinicalNotes: [],
     medications: [],
     dischargeSummary: undefined,
     orders: safeOrders,
@@ -657,6 +799,7 @@ function redactForFrontDesk(p: PatientRecord): PatientRecord {
     firstAssessmentSummary: undefined,
     firstAssessmentFullNote: undefined,
     secondAssessmentNote: undefined,
+    clinicalNotes: [],
     medications: [],
     dischargeSummary: undefined,
     orders: [],
@@ -718,6 +861,7 @@ function redactForDiagnosticDept(p: PatientRecord, role: RoleType): PatientRecor
     firstAssessmentSummary: undefined,
     firstAssessmentFullNote: undefined,
     secondAssessmentNote: undefined,
+    clinicalNotes: [],
     medications: [],
     dischargeSummary: undefined,
     timeline: [],

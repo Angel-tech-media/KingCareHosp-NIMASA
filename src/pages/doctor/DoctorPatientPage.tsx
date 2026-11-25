@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -9,8 +9,11 @@ import {
   UserCheck,
   Eye,
   Pencil,
+  FileText,
+  Clock,
 } from 'lucide-react';
 import { useHospital } from '../../context/HospitalContext';
+import { ClinicalNoteType } from '../../types';
 import { PageHeader, Tabs, TabItem, ComplianceDetails } from '../../components/ui';
 import { OrderDepartment, OrderTestsModal, SampleTestCatalogItem } from './OrderTestsModal';
 import { RmpExaminationPanel } from './RmpExaminationPanel';
@@ -19,54 +22,82 @@ type PatientChartTab = 'EXAM' | 'INVESTIGATIONS' | 'NOTES' | 'TRAIL';
 
 export const DoctorPatientPage: React.FC = () => {
   const { recordNo } = useParams<{ recordNo: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     patients,
     activeRole,
     currentUser,
     startFirstAssessment,
-    completeFirstAssessment,
+    addClinicalNote,
+    logRestrictedRecordAccess,
     orderTests,
     updateOrderInstruction,
-    recordSecondAssessment,
     uploadOrderAttachment,
   } = useHospital();
 
   const isAdmin = activeRole === 'ADMIN';
   const patient = patients.find((p) => p.recordNo === recordNo) || patients[0];
 
-  const [activeTab, setActiveTab] = useState<PatientChartTab>('EXAM');
+  const requestedTab = searchParams.get('tab');
+  const initialTab: PatientChartTab =
+    requestedTab === 'NOTES' ||
+    requestedTab === 'INVESTIGATIONS' ||
+    requestedTab === 'TRAIL' ||
+    requestedTab === 'EXAM'
+      ? requestedTab
+      : 'EXAM';
+
+  const [activeTab, setActiveTab] = useState<PatientChartTab>(initialTab);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [editingInstructionText, setEditingInstructionText] = useState('');
 
-  const [shortSummary, setShortSummary] = useState(
-    patient.firstAssessmentSummary ||
-      'Examination in progress; awaiting diagnostic or specialist findings.'
-  );
-  const [fullNote, setFullNote] = useState(
-    patient.firstAssessmentFullNote ||
-      'Seafarer examined in private consultation room. Alert, afebrile, systemic examination documented against Section A-I/9.2 criteria.'
-  );
-  const [secondNote, setSecondNote] = useState(
-    patient.secondAssessmentNote ||
-      'Reviewed published investigation findings against Table A-I/9 and ILO/IMO Guidelines.'
-  );
+  const clinicalNotes = patient?.clinicalNotes || [];
+  const defaultNoteType: ClinicalNoteType = isAdmin
+    ? 'Peer Review'
+    : clinicalNotes.length === 0
+    ? 'Initial Examination'
+    : 'Handover / Addendum';
+
+  const [noteType, setNoteType] = useState<ClinicalNoteType>(defaultNoteType);
+  const [shortSummary, setShortSummary] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
   useEffect(() => {
-    setShortSummary(
-      patient.firstAssessmentSummary ||
-        'Examination in progress; awaiting diagnostic or specialist findings.'
+    if (
+      requestedTab === 'NOTES' ||
+      requestedTab === 'INVESTIGATIONS' ||
+      requestedTab === 'TRAIL' ||
+      requestedTab === 'EXAM'
+    ) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
+
+  useEffect(() => {
+    if (!patient) return;
+    setNoteType(
+      isAdmin
+        ? 'Peer Review'
+        : (patient.clinicalNotes?.length || 0) === 0
+        ? 'Initial Examination'
+        : 'Handover / Addendum'
     );
-    setFullNote(
-      patient.firstAssessmentFullNote ||
-        'Seafarer examined in private consultation room. Alert, oriented, cardiorespiratory examination documented.'
+    setShortSummary('');
+    setNoteContent('');
+  }, [patient?.id, isAdmin]);
+
+  useEffect(() => {
+    if (!patient || activeTab !== 'NOTES') return;
+    void logRestrictedRecordAccess(
+      patient.id,
+      isAdmin
+        ? 'Medical Director / Peer Review (RQP-304)'
+        : 'Practitioner Clinical & Handover Review'
     );
-    setSecondNote(
-      patient.secondAssessmentNote ||
-        'Reviewed published investigation findings against Table A-I/9 and ILO/IMO Guidelines.'
-    );
-  }, [patient.id]);
+  }, [patient?.id, activeTab, isAdmin, logRestrictedRecordAccess]);
 
   const showToast = (msg: string) => {
     setFeedbackToast(msg);
@@ -76,10 +107,39 @@ export const DoctorPatientPage: React.FC = () => {
   const publishedOrders = patient.orders.filter((o) => o.status === 'Published');
   const rmp = patient.rmp;
 
-  const handleMarkFirstAssessmentComplete = (e: React.FormEvent) => {
+  const handleSelectTab = (next: PatientChartTab) => {
+    setActiveTab(next);
+    if (next === 'EXAM') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: next }, { replace: true });
+    }
+  };
+
+  const handleFileClinicalNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    completeFirstAssessment(patient.id, shortSummary, fullNote);
-    showToast('Confidential examination note saved and stamped.');
+    if (!noteContent.trim()) {
+      showToast('Please enter your clinical findings or review note before filing.');
+      return;
+    }
+    setSavingNote(true);
+    try {
+      await addClinicalNote(patient.id, {
+        noteType,
+        summary: shortSummary.trim() || undefined,
+        content: noteContent.trim(),
+      });
+      setNoteContent('');
+      setShortSummary('');
+      if (!isAdmin) {
+        setNoteType('Handover / Addendum');
+      }
+      showToast(`Signed "${noteType}" permanently added to ${patient.recordNo} clinical file.`);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not save clinical note.');
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const handleConfirmTestOrders = async (
@@ -96,20 +156,14 @@ export const DoctorPatientPage: React.FC = () => {
         clinicalInstruction: (instructionsByDept[t.department] || '').trim(),
       }))
     );
-    setActiveTab('INVESTIGATIONS');
+    handleSelectTab('INVESTIGATIONS');
     showToast(`Ordered ${selectedTests.length} investigation(s) with department instructions.`);
   };
 
   const handleSaveEditedInstruction = async (orderId: string) => {
     await updateOrderInstruction(orderId, editingInstructionText.trim());
     setEditingOrderId(null);
-    showToast('Updated RQF-403-01 instruction for receiving department.');
-  };
-
-  const handleSaveSecondAssessment = (e: React.FormEvent) => {
-    e.preventDefault();
-    recordSecondAssessment(patient.id, secondNote);
-    showToast('Post-referral clinical review recorded.');
+    showToast('Updated clinical instruction for receiving department.');
   };
 
   const determinationStyle =
@@ -128,7 +182,11 @@ export const DoctorPatientPage: React.FC = () => {
       label: 'Investigations & Instructions',
       count: patient.orders.length,
     },
-    { id: 'NOTES', label: 'Diagnosis & Clinical Notes' },
+    {
+      id: 'NOTES',
+      label: 'Clinical Case File & Notes',
+      count: clinicalNotes.length,
+    },
     { id: 'TRAIL', label: 'Trail', count: patient.timeline.length },
   ];
 
@@ -247,6 +305,19 @@ export const DoctorPatientPage: React.FC = () => {
                   </button>
                 )}
 
+              {activeTab !== 'NOTES' && (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTab('NOTES')}
+                  className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded border border-surface-border-strong bg-white hover:bg-surface-canvas text-ink-primary text-xs font-semibold transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-primary-700" aria-hidden="true" />
+                  <span>
+                    Clinical File ({clinicalNotes.length})
+                  </span>
+                </button>
+              )}
+
               {patient.status === 'Active' && (
                 <button
                   type="button"
@@ -285,7 +356,7 @@ export const DoctorPatientPage: React.FC = () => {
       <Tabs
         tabs={tabs}
         activeTab={activeTab}
-        onChange={setActiveTab}
+        onChange={handleSelectTab}
         ariaLabel="Seafarer clinical chart tabs"
       />
 
@@ -491,75 +562,208 @@ export const DoctorPatientPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: CLINICAL NOTES & RECORD COMPLETENESS */}
+      {/* TAB 3: CHRONOLOGICAL CLINICAL CASE FILE & RECORD COMPLETENESS */}
       {activeTab === 'NOTES' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 space-y-6">
+            {/* Chronological Case File History (Read-Only Permanent Entries) */}
+            <div className="p-5 rounded-2xl border border-surface-border bg-surface-card space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-base font-semibold text-ink-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary-700" aria-hidden="true" />
+                    <span>Confidential Clinical Case File &amp; Handover History</span>
+                  </h2>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    Complete chronological filing across all examining doctors and peer reviewers. Earlier entries are permanently preserved and never overwritten.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-primary-50 border border-primary-200 text-primary-800 text-xs font-semibold">
+                  {clinicalNotes.length} {clinicalNotes.length === 1 ? 'Signed Entry' : 'Signed Entries'}
+                </span>
+              </div>
+
+              <ComplianceDetails
+                label="View clinical privacy & multi-doctor access rules"
+                items={[
+                  {
+                    code: 'RQP-802 §7.2.1 & Annex B (R-17)',
+                    description:
+                      'Authorises covering practitioners in the practice and the Medical Director to access full clinical records for continuity of care, filing, and peer review — with every access automatically logged in RQR-802-01.',
+                  },
+                  {
+                    code: 'RQP-801',
+                    description:
+                      'Requires permanent, tamper-evident retention of examination notes (10-year statutory retention) without overwriting prior practitioners’ findings.',
+                  },
+                  {
+                    code: 'QA-P-808',
+                    description:
+                      'Strictly hidden from Reception, Eye Clinic, ENT, Laboratory, Radiology, employers, and NIMASA sponsor views.',
+                  },
+                ]}
+              />
+
+              {clinicalNotes.length === 0 ? (
+                <div className="p-6 rounded-xl border border-dashed border-surface-border-strong bg-surface-canvas text-center text-xs text-ink-muted">
+                  No clinical notes have been filed for {patient.fullName} yet. Use the form below to file the first signed examination note.
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {clinicalNotes.map((entry, idx) => {
+                    const badgeStyle =
+                      entry.noteType === 'Peer Review'
+                        ? 'bg-purple-50 text-purple-900 border-purple-200'
+                        : entry.noteType === 'Follow-Up Review'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : entry.noteType === 'Handover / Addendum'
+                        ? 'bg-amber-50 text-amber-900 border-amber-200'
+                        : 'bg-primary-50 text-primary-800 border-primary-200';
+
+                    return (
+                      <article
+                        key={entry.id}
+                        className="p-4 rounded-xl border border-surface-border bg-surface-canvas space-y-2.5"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-ink-muted">
+                              #{idx + 1}
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeStyle}`}
+                            >
+                              {entry.noteType}
+                            </span>
+                            <span className="text-xs font-semibold text-ink-primary">
+                              {entry.authorName}
+                            </span>
+                            {entry.authorLicense && (
+                              <span className="font-mono text-xs text-primary-700">
+                                ({entry.authorLicense})
+                              </span>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-xs text-ink-muted font-mono">
+                            <Clock className="w-3 h-3" aria-hidden="true" />
+                            {entry.createdAt}
+                          </span>
+                        </div>
+
+                        {entry.summary && (
+                          <div className="text-xs text-ink-secondary bg-white px-3 py-1.5 rounded-lg border border-surface-border">
+                            <strong className="text-ink-primary">Stage Summary:</strong>{' '}
+                            {entry.summary}
+                          </div>
+                        )}
+
+                        <div className="text-sm text-ink-primary whitespace-pre-wrap leading-relaxed bg-white p-3.5 rounded-lg border border-surface-border">
+                          {entry.content}
+                        </div>
+
+                        <div className="text-xs text-ink-muted">
+                          Signed by {entry.authorName} · {entry.authorRole}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Append New Signed Entry Form */}
             <form
-              onSubmit={handleMarkFirstAssessmentComplete}
-              className="p-5 rounded border border-surface-border bg-surface-card space-y-4"
+              onSubmit={handleFileClinicalNote}
+              className="p-5 rounded-2xl border border-surface-border bg-surface-card space-y-4"
             >
               <div>
                 <h2 className="text-base font-semibold text-ink-primary">
-                  Doctor&apos;s Diagnosis &amp; Clinical Notes
+                  Add Signed Entry to Clinical File
                 </h2>
                 <p className="text-xs text-ink-muted mt-0.5">
-                  Private to the examining doctor — never visible to Reception, Eye Clinic, ENT, Laboratory, Radiology, or NIMASA.
+                  Appends a new signed note under{' '}
+                  <strong className="text-ink-secondary">
+                    {currentUser?.fullName || 'Examining Practitioner'}
+                  </strong>
+                  {currentUser?.licenseNo ? ` (${currentUser.licenseNo})` : ''} without altering any previous doctor&apos;s notes.
                 </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-ink-secondary mb-1">
-                  Stage Summary (Non-Clinical Status)
-                </label>
-                <input
-                  type="text"
-                  value={shortSummary}
-                  onChange={(e) => setShortSummary(e.target.value)}
-                  className="w-full h-10 rounded-xl border border-surface-border-strong px-3 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-ink-secondary mb-1">
+                    Note Category
+                  </label>
+                  <select
+                    value={noteType}
+                    onChange={(e) => setNoteType(e.target.value as ClinicalNoteType)}
+                    className="w-full h-10 rounded-xl border border-surface-border-strong bg-white px-3 text-xs font-medium text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  >
+                    <option value="Initial Examination">
+                      Initial Examination (First Consultation)
+                    </option>
+                    <option value="Handover / Addendum">
+                      Handover / Addendum (Additional or Minor Finding)
+                    </option>
+                    <option value="Follow-Up Review">
+                      Follow-Up Review (Post-Investigation Review)
+                    </option>
+                    <option value="Peer Review">
+                      Peer Review / Medical Director Audit Note
+                    </option>
+                  </select>
+                </div>
+
+                {noteType !== 'Peer Review' && (
+                  <div>
+                    <label className="block text-xs font-medium text-ink-secondary mb-1">
+                      Stage Summary (Optional Non-Clinical Status)
+                    </label>
+                    <input
+                      type="text"
+                      value={shortSummary}
+                      onChange={(e) => setShortSummary(e.target.value)}
+                      placeholder="e.g., Initial exam recorded; awaiting Eye & Lab results"
+                      className="w-full h-10 rounded-xl border border-surface-border-strong px-3 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-ink-secondary mb-1">
-                  Personal Clinical Diagnosis &amp; Examination Findings (Confidential)
+                  {noteType === 'Peer Review'
+                    ? 'Medical Director / Peer Review Clinical Commentary (Confidential)'
+                    : 'Confidential Clinical Findings, Diagnosis & Handover Notes'}
                 </label>
                 <textarea
                   rows={5}
-                  value={fullNote}
-                  onChange={(e) => setFullNote(e.target.value)}
-                  placeholder="Record confidential clinical diagnosis, differential, history, and physical examination findings..."
-                  className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
+                  required
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder={
+                    noteType === 'Handover / Addendum'
+                      ? 'Record incidental or minor clinical findings, handover context for a covering doctor, or follow-up observations...'
+                      : noteType === 'Peer Review'
+                      ? 'Record peer-review observations, consistency verification against STCW fitness standards, or Medical Director audit sign-off...'
+                      : 'Record full clinical history, physical examination findings, differential diagnosis, and clinical reasoning...'
+                  }
+                  className="w-full rounded-xl border border-surface-border-strong px-3.5 py-2.5 text-sm text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
                 />
               </div>
 
-              <button
-                type="submit"
-                className="h-10 px-4 rounded-xl bg-navy-900 hover:bg-navy-800 text-white text-xs font-semibold transition-colors"
-              >
-                Save Diagnosis &amp; Note
-              </button>
-            </form>
-
-            <form
-              onSubmit={handleSaveSecondAssessment}
-              className="p-5 rounded-2xl border border-surface-border bg-surface-card space-y-3"
-            >
-              <h2 className="text-base font-semibold text-ink-primary">
-                Follow-Up Review Note
-              </h2>
-              <textarea
-                rows={3}
-                value={secondNote}
-                onChange={(e) => setSecondNote(e.target.value)}
-                className="w-full rounded-xl border border-surface-border-strong px-3 py-2 text-xs text-ink-primary focus:outline-none focus:ring-2 focus:ring-primary-700"
-              />
-              <button
-                type="submit"
-                className="h-10 px-4 rounded-xl border border-surface-border-strong bg-surface-card hover:bg-surface-subtle text-xs font-semibold text-ink-primary transition-colors"
-              >
-                Save Follow-Up Review
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <span className="text-xs text-ink-muted">
+                  Restricted access is logged automatically in the hospital Access Log.
+                </span>
+                <button
+                  type="submit"
+                  disabled={savingNote}
+                  className="h-10 px-4 rounded-xl bg-navy-900 hover:bg-navy-800 disabled:opacity-60 text-white text-xs font-semibold transition-colors"
+                >
+                  {savingNote ? 'Filing Signed Note...' : `File Signed ${noteType}`}
+                </button>
+              </div>
             </form>
           </div>
 

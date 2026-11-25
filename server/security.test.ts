@@ -146,6 +146,36 @@ async function main() {
       200
     );
 
+    // Second practitioner / Medical Director appends a Handover / Peer Review note without overwriting Doctor A's finding
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/patients/${pEyeId}/clinical-notes`,
+          headers: { cookie: adminCookie },
+          payload: {
+            noteType: 'Peer Review',
+            content: 'CONFIDENTIAL_SECOND_PRACTITIONER_REVIEW_NOTE',
+          },
+        })
+      ).statusCode,
+      200
+    );
+
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/patients/${pEyeId}/record-access`,
+          headers: { cookie: adminCookie },
+          payload: {
+            purpose: 'Peer Review (RQP-304)',
+          },
+        })
+      ).statusCode,
+      200
+    );
+
     assert.equal(
       (
         await app.inject({
@@ -280,6 +310,7 @@ async function main() {
     assert.ok(fdEyePatient);
     assert.deepEqual(fdEyePatient.orders, []);
     assert.equal(fdEyePatient.firstAssessmentFullNote, undefined);
+    assert.deepEqual(fdEyePatient.clinicalNotes, []);
     assert.deepEqual(fdEyePatient.medications, []);
     assert.equal(fdEyePatient.rmp.determinationBasis, undefined);
     assert.equal(fdEyePatient.rmp.visionHearing.distanceAided.right, '—');
@@ -297,6 +328,7 @@ async function main() {
     assert.ok(eyeScopedPatient.orders.every((o: any) => o.department === 'Eye Clinic'));
     assert.equal(eyeScopedPatient.rmp.visionHearing.audiometryRight.hz500, 0);
     assert.equal(eyeScopedPatient.firstAssessmentFullNote, undefined);
+    assert.deepEqual(eyeScopedPatient.clinicalNotes, []);
 
     const nimasaBoot = (
       await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: nimasaCookie } })
@@ -306,8 +338,40 @@ async function main() {
     const nimasaPatient = nimasaBoot.patients.find((p: any) => p.id === pEyeId);
     assert.ok(nimasaPatient);
     assert.equal(nimasaPatient.firstAssessmentFullNote, undefined);
+    assert.deepEqual(nimasaPatient.clinicalNotes, []);
     assert.equal(nimasaPatient.rmp.visionHearing.audiometryRight.hz500, 0);
     assert.equal(nimasaPatient.rmp.visionHearing.distanceAided.right, '—');
+
+    // Verify Doctor & Admin see both chronological entries (Doctor A preserved + Reviewer appended) & access audit log
+    const adminBootCheck = (
+      await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: adminCookie } })
+    ).json() as Record<string, any>;
+    const adminEyePatient = adminBootCheck.patients.find((p: any) => p.id === pEyeId);
+    assert.equal(adminEyePatient.clinicalNotes.length, 2);
+    assert.equal(
+      adminEyePatient.clinicalNotes[0].content,
+      'CONFIDENTIAL_DOCTOR_DIAGNOSIS_EYEPATIENT'
+    );
+    assert.equal(
+      adminEyePatient.clinicalNotes[1].content,
+      'CONFIDENTIAL_SECOND_PRACTITIONER_REVIEW_NOTE'
+    );
+    assert.ok(
+      adminBootCheck.auditLog.some((a: any) => a.action === 'RESTRICTED_RECORD_ACCESSED')
+    );
+
+    // Non-doctors cannot post clinical notes or log restricted record access
+    assert.equal(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/api/patients/${pEyeId}/clinical-notes`,
+          headers: { cookie: eyeCookie },
+          payload: { noteType: 'Handover / Addendum', content: 'Unauthorized note' },
+        })
+      ).statusCode,
+      403
+    );
 
     const nimasaAttachRes = await app.inject({
       method: 'GET',
